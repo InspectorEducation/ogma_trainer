@@ -1,0 +1,40 @@
+# Flutter/Dart
+**/build/
+**/.dart_tool/
+**/.packages
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+**/.fvm/
+**/generated/
+
+# IDEs y editores
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Configuración personal
+/local.properties
+
+# Caché y dependencias
+pubspec.lock
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/
+
+# Logs y debugging
+*.log
+crashlytics/
+*.pid
+
+# Archivos de prueba
+coverage/
+*.orig
+
+# Configuración Firebase
+ios/GoogleService-Info.plist
+android/app/google-services.json
