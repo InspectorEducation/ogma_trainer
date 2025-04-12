@@ -36,7 +36,7 @@ class _RegistrarseViewState extends State<RegistrarseView> {
               Text(
                 "Create una cuenta",
                 style: TextStyle(
-                    color: TColor.gray,
+                    color: TColor.black,
                     fontSize: 25,
                     fontWeight: FontWeight.w700),
               ),
@@ -150,11 +150,11 @@ class _RegistrarseViewState extends State<RegistrarseView> {
                         "🙋 Ya tienes una cueta?",
                         style: TextStyle(
                             color: TColor.black, 
-                            fontSize: 20),
+                            fontSize: 16),
                       ),
                       Text(
                         " Iniciar Sesión",
-                        style: TextStyle(color: TColor.black, fontSize: 20, fontWeight: FontWeight.w700),
+                        style: TextStyle(color: TColor.black, fontSize: 16, fontWeight: FontWeight.w700),
                       )
                     ],
                   )),

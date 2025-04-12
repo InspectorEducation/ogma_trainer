@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ogma_trainer/common_widget/define_tu_meta_page.dart';
+import 'package:ogma_trainer/view/objectivo/define_tu_meta_page.dart';
 
 class CualEsTuObjectivoView extends StatefulWidget {
   const CualEsTuObjectivoView({super.key});

@@ -20,6 +20,17 @@ class _CompletePerfilViewState extends State<CompletePerfilView> {
     var media = MediaQuery.of(context).size;
     
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: const Text(
+          'Mi perfil',
+          style: TextStyle(fontSize:20, fontWeight: FontWeight.w700),
+        ),
+        centerTitle: true,
+      ),
       backgroundColor: TColor.white,
       body: SingleChildScrollView(
         child: SafeArea(

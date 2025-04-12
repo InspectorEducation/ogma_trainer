@@ -15,8 +15,7 @@ class _OnBoardingViewState extends State<OnBoardingView> {
   PageController controller = PageController();
 
   @override
-  void initState() {
-    // TODO: implement initState
+  void initState() {    
     super.initState();
 
     controller.addListener(() {
@@ -77,8 +76,7 @@ class _OnBoardingViewState extends State<OnBoardingView> {
                   selectPage = selectPage + 1;
                   controller.animateToPage(selectPage, duration: Duration(milliseconds: 600), curve:Curves.decelerate);                  
                   //controller.jumpToPage(selectPage);
-                } else {
-                  print("Welcome");
+                } else {                  
                   Navigator.push(context, MaterialPageRoute(builder: (context) => const RegistrarseView()));
                 }  
                 

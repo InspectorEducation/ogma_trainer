@@ -3,16 +3,16 @@ import 'package:ogma_trainer/common/color_extension.dart';
 
 class GoalOption extends StatelessWidget {
   final String title;
-  final String subtitle;
+  final String description;
   final bool isSelected;
   final VoidCallback onTap;
 
   const GoalOption({
+    Key? key,
     required this.title,
-    required this.subtitle,
+    required this.description,
     required this.isSelected,
     required this.onTap,
-    Key? key,
   }) : super(key: key);
 
   @override
@@ -20,18 +20,36 @@ class GoalOption extends StatelessWidget {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        margin: EdgeInsets.only(bottom: 10),
-        padding: EdgeInsets.all(16),
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? TColor.primaryColor1 : TColor.primaryColor2,
-          borderRadius: BorderRadius.circular(10),
+          gradient: LinearGradient(
+                            colors: TColor.primaryG,
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(8),
+          border: isSelected
+            ? Border.all(color: TColor.primaryColor2, width: 2)
+            : null,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(title, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            SizedBox(height: 5),
-            Text(subtitle, style: TextStyle(color: TColor.secondaryColor1)),
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w700               
+              ),
+            ),
+            const SizedBox(height: 5),
+            Text(
+              description,
+              style: TextStyle(
+                fontSize: 16,
+                color: TColor.white,
+              ),
+            ),
           ],
         ),
       ),

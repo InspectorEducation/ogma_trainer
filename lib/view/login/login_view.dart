@@ -2,7 +2,9 @@ import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/round_textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
+import 'package:ogma_trainer/view/login/bienvenido_view.dart';
 import 'package:ogma_trainer/view/login/complete_perfil_view.dart';
+import 'package:ogma_trainer/view/main_tab/main_tab_view.dart';
 
 class LoginView extends StatefulWidget {
   const LoginView({super.key});
@@ -44,7 +46,7 @@ class _LoginViewState extends State<LoginView> {
                   height: media.width * 0.04,
                 ),
                 const RoundTextfield(
-                  hitText: "Email",
+                  hitText: "Correo",
                   icon: "assets/img/email.png",
                   keyboardType: TextInputType.emailAddress,
                 ),
@@ -52,7 +54,7 @@ class _LoginViewState extends State<LoginView> {
                   height: media.width * 0.04,
                 ),
                 RoundTextfield(
-                  hitText: "Password",
+                  hitText: "Contraseña",
                   icon: "assets/img/lock.png",
                   obscureText: true,
                   rightIcon: TextButton(
@@ -72,8 +74,11 @@ class _LoginViewState extends State<LoginView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    SizedBox(
+                      height: media.width * 0.3,
+                    ),
                     Text(
-                      "Forgot your password?",
+                      "¿Olvidaste tu contraseña?",
                       style: TextStyle(
                           color: TColor.gray,
                           fontSize: 14,
@@ -81,7 +86,7 @@ class _LoginViewState extends State<LoginView> {
                     ),
                   ],
                 ),
-               const Spacer(),
+                const Spacer(),
                 RoundButton(
                     title: "Login",
                     onPressed: () {
@@ -89,7 +94,7 @@ class _LoginViewState extends State<LoginView> {
                           context,
                           MaterialPageRoute(
                               builder: (context) =>
-                                  const CompletePerfilView()));
+                                  const MainTabView()));
                     }),
                 SizedBox(
                   height: media.width * 0.04,
@@ -119,11 +124,10 @@ class _LoginViewState extends State<LoginView> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    
                     SizedBox(
                       width: media.width * 0.04,
                     ),
-                   //se puede colocar login por google
+                    //se puede colocar login por google
                   ],
                 ),
                 SizedBox(
@@ -137,14 +141,14 @@ class _LoginViewState extends State<LoginView> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        "Don’t have an account yet? ",
+                        "¿No tienes una cuenta aún? ",
                         style: TextStyle(
                           color: TColor.black,
                           fontSize: 14,
                         ),
                       ),
                       Text(
-                        "Register",
+                        "Registrarse",
                         style: TextStyle(
                             color: TColor.black,
                             fontSize: 14,

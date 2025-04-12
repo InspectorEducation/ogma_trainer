@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
-import 'package:ogma_trainer/view/on_boarding/on_boarding_view.dart';
 import 'package:ogma_trainer/view/on_boarding/started_view.dart';
 
-void main() {
+void main() {  
   runApp(const MyApp());
 }
 
