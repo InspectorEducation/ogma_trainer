@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/tab_button.dart';
-import 'package:ogma_trainer/view/home/blank_view.dart';
 import 'package:ogma_trainer/view/mapa_maquinas/mapa_maquinas_view.dart';
 import 'package:ogma_trainer/view/perfil/perfil_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/calendario_entrenamiento_view.dart';

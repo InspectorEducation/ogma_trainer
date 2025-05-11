@@ -4,6 +4,7 @@ import 'package:ogma_trainer/common_widget/exercises_set_section.dart';
 import 'package:ogma_trainer/common_widget/icon_title_next_row.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/view/paso_a_paso/entrenamiento_flow_view.dart';
+import 'package:ogma_trainer/view/paso_a_paso/estoy_listo_qr_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/pasos_ejercicios.dart';
 
 class DetalleEntranamientoView extends StatefulWidget {
@@ -365,15 +366,20 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                     mainAxisSize: MainAxisSize.max,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
-                      RoundButton(title: "Agendar", onPressed: () {
-                        Navigator.push(
-                                 context,
-                                 MaterialPageRoute(
-                                   builder: (context) =>
-                                       const EntrenamientoFlowView(),
-                                 ),
-                               );
-                      })
+                      RoundButton(
+                          title: "Agendar",
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const EstoyListoQRView(
+                                  machineName: 'Press de Pierna',
+                                  machineImageAsset:
+                                      'assets/img/maquina_abdominales_inclinada.png',
+                                ),
+                              ),
+                            );
+                          })
                     ],
                   ),
                 )

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/goal_option.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
+import 'package:ogma_trainer/models/user_profile_data.dart';
 import 'package:ogma_trainer/view/objectivo/define_tu_estado_fisico.dart';
 
 class DefineTuExperiencia extends StatefulWidget {
-  const DefineTuExperiencia({super.key});
+  final UserProfileData profileData;
+  const DefineTuExperiencia({super.key, required this.profileData});
 
   @override
   State<DefineTuExperiencia> createState() => _DefineTuExperienciaPageState();
@@ -13,6 +15,12 @@ class DefineTuExperiencia extends StatefulWidget {
 
 class _DefineTuExperienciaPageState extends State<DefineTuExperiencia> {
   int? _selectedExperienceIndex;
+
+  final List<String> _experienceValues = [
+    "Principiante", 
+    "Intermedio",   
+    "Avanzado"     
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +98,17 @@ class _DefineTuExperienciaPageState extends State<DefineTuExperiencia> {
               title: "Continuar",
               onPressed: () {
                 if (_selectedExperienceIndex != null) {                  
-                  Navigator.push(context, MaterialPageRoute(builder: (context) => DefineTuEstadoFisico()));
+                  widget.profileData.experienciaEntrenamiento = _experienceValues[_selectedExperienceIndex!];
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DefineTuEstadoFisico(profileData: widget.profileData),
+                    ),
+                  );
+                } else {
+                   ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Por favor, selecciona tu experiencia.")),
+                  );
                 }
               }
             ),

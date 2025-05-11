@@ -9,7 +9,8 @@ class RoundTextfield extends StatelessWidget {
   final bool obscureText;
   final Widget? rightIcon;
   final EdgeInsets? margin;
-  const RoundTextfield({super.key, required this.hitText, required this.icon, this.controller, this.margin, this.keyboardType, this.obscureText = false, this.rightIcon, });
+  final String? Function(String?)? validator;
+  const RoundTextfield({super.key, required this.hitText, required this.icon, this.controller, this.margin, this.keyboardType, this.obscureText = false, this.rightIcon, this.validator, });
 
   @override
   Widget build(BuildContext context) {
@@ -17,11 +18,11 @@ class RoundTextfield extends StatelessWidget {
       margin: margin,
       decoration: BoxDecoration(
           color: TColor.lightGray, borderRadius: BorderRadius.circular(15)),
-      child: TextField(
-
+      child: TextFormField(
         controller: controller,
         keyboardType: keyboardType,
         obscureText: obscureText,
+        validator: validator,
         decoration: InputDecoration(
             contentPadding:
                 const EdgeInsets.symmetric(vertical: 15, horizontal: 15),

@@ -42,6 +42,9 @@ dependencies:
   calendar_agenda:
     path: dev_lib/calendar_agenda/
   intl: ^0.17.0
+  mobile_scanner: ^6.0.7
+  http: ^1.2.0
+  flutter_secure_storage: ^9.0.0
 
 dev_dependencies:
   flutter_test:

@@ -2,10 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/goal_option.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
+import 'package:ogma_trainer/models/user_profile_data.dart';
 import 'package:ogma_trainer/view/objectivo/define_tu_experiencia.dart';
 
 class DefineTuMetaPage extends StatefulWidget {
-  const DefineTuMetaPage({super.key});
+  final UserProfileData profileData;
+  const DefineTuMetaPage({super.key, required this.profileData});
 
   @override
   State<DefineTuMetaPage> createState() => _DefineTuMetaPageState();
@@ -13,6 +15,13 @@ class DefineTuMetaPage extends StatefulWidget {
 
 class _DefineTuMetaPageState extends State<DefineTuMetaPage> {
   int? _selectedGoalIndex;
+
+   final List<String> _goalValues = [
+    "Definición muscular",
+    "Hipertrofia",
+    "Perder peso",
+    "Mejorar la flexibilidad"
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -87,13 +96,21 @@ class _DefineTuMetaPageState extends State<DefineTuMetaPage> {
               onTap: () => setState(() => _selectedGoalIndex = 3),
             ),
             
-            const Spacer(),
-            //dejar el espacio del botton apartir de las dimenciones de la pantalla            
+            const Spacer(),                   
             RoundButton(title: "Continuar", onPressed: () {
-               Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const DefineTuExperiencia()),
-              );
+               if (_selectedGoalIndex != null) {                  
+                  widget.profileData.objetivoPrincipal = _goalValues[_selectedGoalIndex!];
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => DefineTuExperiencia(profileData: widget.profileData), // Pasa los datos actualizados
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Por favor, selecciona un objetivo.")),
+                  );
+                }
               }),
             const SizedBox(height: 30),
           ],

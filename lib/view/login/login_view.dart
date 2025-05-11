@@ -2,8 +2,7 @@ import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/round_textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
-import 'package:ogma_trainer/view/login/bienvenido_view.dart';
-import 'package:ogma_trainer/view/login/complete_perfil_view.dart';
+import 'package:ogma_trainer/services/auth_service.dart';
 import 'package:ogma_trainer/view/main_tab/main_tab_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -14,7 +13,61 @@ class LoginView extends StatefulWidget {
 }
 
 class _LoginViewState extends State<LoginView> {
-  bool isCheck = false;
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final AuthService _authService = AuthService(); // Instancia del servicio
+
+  bool _isPasswordVisible = false; // Para el toggle de visibilidad de contraseña
+  bool _isLoading = false; // Para mostrar un indicador de carga
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _performLogin() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Por favor, ingresa correo y contraseña.")),
+      );
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final result = await _authService.login(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
+
+    setState(() {
+      _isLoading = false;
+    });
+
+    if (mounted) { // Verificar si el widget sigue en el árbol
+      if (result["success"] == true) {
+        // Login exitoso
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result["message"] ?? "Login exitoso!")),
+        );        
+
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const MainTabView()),
+        );
+      } else {
+        // Error en el login
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result["message"] ?? "Error al iniciar sesión")),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var media = MediaQuery.of(context).size;
@@ -28,6 +81,7 @@ class _LoginViewState extends State<LoginView> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
+                const SizedBox(height: 20),
                 Text(
                   "Hey,",
                   style: TextStyle(color: TColor.gray, fontSize: 20),
@@ -45,10 +99,11 @@ class _LoginViewState extends State<LoginView> {
                 SizedBox(
                   height: media.width * 0.04,
                 ),
-                const RoundTextfield(
+                RoundTextfield(
                   hitText: "Correo",
                   icon: "assets/img/email.png",
                   keyboardType: TextInputType.emailAddress,
+                  controller: _emailController,
                 ),
                 SizedBox(
                   height: media.width * 0.04,
@@ -56,46 +111,51 @@ class _LoginViewState extends State<LoginView> {
                 RoundTextfield(
                   hitText: "Contraseña",
                   icon: "assets/img/lock.png",
-                  obscureText: true,
-                  rightIcon: TextButton(
-                      onPressed: () {},
-                      child: Container(
-                          alignment: Alignment.center,
-                          width: 20,
-                          height: 20,
-                          child: Image.asset(
-                            "assets/img/show_password.png",
-                            width: 20,
-                            height: 20,
-                            fit: BoxFit.contain,
-                            color: TColor.gray,
-                          ))),
+                  obscureText: !_isPasswordVisible,
+                  controller: _passwordController,
+                  rightIcon: IconButton(
+                      icon: Icon(
+                        _isPasswordVisible
+                            ? Icons.visibility_off
+                            : Icons.visibility,
+                        color: TColor.gray,
+                      ),
+                      onPressed: () {
+                        setState(() {
+                          _isPasswordVisible = !_isPasswordVisible;
+                        });
+                      }),
                 ),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    SizedBox(
-                      height: media.width * 0.3,
-                    ),
-                    Text(
-                      "¿Olvidaste tu contraseña?",
-                      style: TextStyle(
-                          color: TColor.gray,
-                          fontSize: 14,
-                          decoration: TextDecoration.underline),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: TextButton(
+                        onPressed: () {                          
+                           ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("Funcionalidad 'Olvidé contraseña' no implementada.")),
+                          );
+                        },
+                        child: Text(
+                          "¿Olvidaste tu contraseña?",
+                          style: TextStyle(
+                              color: TColor.gray,
+                              fontSize: 14,
+                              decoration: TextDecoration.underline),
+                        ),
+                      ),
                     ),
                   ],
                 ),
                 const Spacer(),
-                RoundButton(
-                    title: "Login",
-                    onPressed: () {
-                      Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (context) =>
-                                  const MainTabView()));
-                    }),
+                if (_isLoading)
+                  const Center(child: CircularProgressIndicator())
+                else
+                  RoundButton(
+                      title: "Login",
+                      onPressed: _performLogin
+                  ),                
                 SizedBox(
                   height: media.width * 0.04,
                 ),

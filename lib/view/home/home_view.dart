@@ -3,8 +3,10 @@ import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/siguiente_entrenamiento_row.dart';
 import 'package:ogma_trainer/common_widget/what_train_row.dart';
+import 'package:ogma_trainer/view/login/login_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/detalle_entranamiento_view.dart';
 import 'package:simple_animation_progress_bar/simple_animation_progress_bar.dart';
+import 'package:ogma_trainer/services/auth_service.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -14,6 +16,9 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
+
+  final AuthService _authService = AuthService();
+
   List latestArr = [
     {
       "image": "assets/img/Workout1.png",
@@ -78,6 +83,47 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
+  Future<void> _handleLogout() async {   
+    final bool? confirmLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cerrar Sesión'),
+          content: const Text('¿Estás seguro de que quieres cerrar sesión?'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Cancelar'),
+              onPressed: () {
+                Navigator.of(context).pop(false);
+              },
+            ),
+            TextButton(
+              child: const Text('Cerrar Sesión'),
+              onPressed: () {
+                Navigator.of(context).pop(true);
+              },
+            ),
+          ],
+        );
+      },
+    );
+    
+    if (confirmLogout != true) {
+      return;
+    }
+    
+    await _authService.logout();
+
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginView()),
+        (Route<dynamic> route) => false,
+      );
+    }
+  }
+
+  
   @override
   Widget build(BuildContext context) {
     var media = MediaQuery.of(context).size;
@@ -113,19 +159,19 @@ class _HomeViewState extends State<HomeView> {
                       IconButton(
                           onPressed: () {},
                           icon: Image.asset(
-                            "assets/img/calendar.png",
+                            "assets/img/notification_active.png",
                             width: 25,
                             height: 25,
                             fit: BoxFit.fitHeight,
                           )),
                       IconButton(
-                          onPressed: () {},
+                          onPressed: _handleLogout,
                           icon: Image.asset(
-                            "assets/img/notification_active.png",
+                            "assets/img/logout.png",
                             width: 25,
                             height: 25,
                             fit: BoxFit.fitHeight,
-                          ))
+                          )),
                     ],
                   )
                 ],

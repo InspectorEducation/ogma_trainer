@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
+import 'package:ogma_trainer/view/main_tab/main_tab_view.dart';
 
 import '../../common_widget/round_button.dart';
 
@@ -51,10 +52,10 @@ class _BienvenidoViewState extends State<BienvenidoView> {
               RoundButton(
                   title: "Go To Home",
                   onPressed: () {
-                    //Navigator.push(
-                    //    context,
-                    //    MaterialPageRoute(
-                    //        builder: (context) => const MainTabView()));
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (context) => const MainTabView()));
                   }),
             ],
           ),
