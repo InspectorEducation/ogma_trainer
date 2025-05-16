@@ -1,9 +1,15 @@
 import 'package:intl/intl.dart';
 
-String getTime(int value, {String formatStr = "hh:mm a"}) {
-  var format = DateFormat(formatStr);
-  return format.format(
-      DateTime.fromMillisecondsSinceEpoch(value * 60 * 1000, isUtc: true));
+String getTime(int totalMinutes) {
+  int hour = (totalMinutes ~/ 60) % 24; // 0-23
+  // int minute = totalMinutes % 60; // No se usa en tu UI actual, pero podrías
+  String period = hour < 12 ? 'AM' : 'PM';
+  if (hour == 0) { // Medianoche
+    hour = 12;
+  } else if (hour > 12) {
+    hour -= 12;
+  }
+  return "${hour.toString().padLeft(2, '0')}:00 $period";
 }
 
 String getStringDateToOtherFormate(String dateStr,

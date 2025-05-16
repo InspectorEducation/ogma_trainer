@@ -3,6 +3,8 @@ import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/what_train_row.dart';
 import 'package:ogma_trainer/common_widget/workout_row.dart';
+import 'package:ogma_trainer/models/routine_model.dart';
+import 'package:ogma_trainer/services/routine_service.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/calendario_entrenamiento_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/detalle_entranamiento_view.dart';
 
@@ -14,6 +16,11 @@ class SeguimientoEntrenamientoView extends StatefulWidget {
 }
 
 class _SeguimientoEntrenamientoViewState extends State<SeguimientoEntrenamientoView> {
+    final RoutineService _routineService = RoutineService();
+
+    bool _isLoadingRoutines = true;
+    String? _errorLoadingRoutines;
+    Map<String, List<Routine>> _groupedRoutinesByObjetivo = {};
 
     List lastWorkoutArr = [
     {
@@ -25,26 +32,51 @@ class _SeguimientoEntrenamientoViewState extends State<SeguimientoEntrenamientoV
     },     
   ];
 
-  List whatArr = [
-    {
-      "image": "assets/img/what_1.png",
-      "title": "Rutina Cuerpo Completo",
-      "exercises": "11 Ejercicios",
-      "time": "32 minutos"
-    },
-    {
-      "image": "assets/img/what_2.png",
-      "title": "Rutina Tren Inferior",
-      "exercises": "12 Ejercicios",
-      "time": "40 minutos"
-    },
-    {
-      "image": "assets/img/what_3.png",
-      "title": "Rutina Abdominales",
-      "exercises": "14 Ejercicios",
-      "time": "20 minutos"
+  @override
+  void initState() {
+    super.initState();
+    _loadRoutines();
+  }
+
+  Future<void> _loadRoutines() async {
+    setState(() {
+      _isLoadingRoutines = true;
+      _errorLoadingRoutines = null;
+      _groupedRoutinesByObjetivo = {};
+    });
+    try {
+      final allRoutines = await _routineService.getAllRoutines();
+      _groupRoutines(allRoutines);
+    } catch (e) {
+      _errorLoadingRoutines = e.toString();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingRoutines = false;
+        });
+      }
     }
-  ];
+  }
+
+  void _groupRoutines(List<Routine> routines) {
+    Map<String, List<Routine>> tempGrouped = {};
+    for (var routine in routines) {      
+      tempGrouped.putIfAbsent(routine.objetivo, () => []).add(routine);      
+    }
+
+    tempGrouped.forEach((key, value) {
+      value.sort((a, b) => a.nombreRutina.compareTo(b.nombreRutina));
+    });
+
+    //Ordenar los grupos de objetivos alfabéticamente
+    var sortedKeys = tempGrouped.keys.toList()..sort();
+    Map<String, List<Routine>> sortedGroupedRoutines = {};
+    for (var key in sortedKeys) {
+      sortedGroupedRoutines[key] = tempGrouped[key]!;
+    }
+    _groupedRoutinesByObjetivo = sortedGroupedRoutines;
+    
+  }
 
 
   @override
@@ -82,7 +114,7 @@ class _SeguimientoEntrenamientoViewState extends State<SeguimientoEntrenamientoV
                 ),
               ),
               title: Text(
-                "Seguimiento Rutinas",
+                "Rutinas Disponibles",
                 style: TextStyle(
                     color: TColor.white,
                     fontSize: 16,
@@ -198,7 +230,7 @@ class _SeguimientoEntrenamientoViewState extends State<SeguimientoEntrenamientoV
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      "Continua tu entrenamiento",
+                      "Rutinas asignadas",
                       style: TextStyle(
                           color: TColor.black,
                           fontSize: 16,
@@ -238,31 +270,75 @@ class _SeguimientoEntrenamientoViewState extends State<SeguimientoEntrenamientoV
                   SizedBox(
                     height: media.width * 0.05,
                   ),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        "Escoge otra rutina",
+                  // --- SECCIÓN "ESCOGE OTRA RUTINA" CON RUTINAS AGRUPADAS Y DESLIZABLES ---
+                  if (!_isLoadingRoutines && _groupedRoutinesByObjetivo.isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 10.0), // Espacio antes del primer grupo
+                      child: Text(
+                        "Explora Rutinas por Objetivo", // Título general para la sección de rutinas
                         style: TextStyle(
                             color: TColor.black,
-                            fontSize: 16,
+                            fontSize: 16, // Un poco más grande
                             fontWeight: FontWeight.w700),
                       ),
-                    ],
-                  ),
-                  ListView.builder(
-                      padding: EdgeInsets.zero,
-                      physics: const NeverScrollableScrollPhysics(),
-                      shrinkWrap: true,
-                      itemCount: whatArr.length,
-                      itemBuilder: (context, index) {
-                        var wObj = whatArr[index] as Map? ?? {};
-                        return InkWell(
-                          onTap: (){
-                            Navigator.push(context, MaterialPageRoute(builder: (context) =>  DetalleEntranamientoView( dObj: wObj, ) ));
-                          },
-                          child:  WhatTrainRow(wObj: wObj) );
-                      }),
+                    ),
+                   _isLoadingRoutines
+                      ? const Padding(padding: EdgeInsets.symmetric(vertical: 50.0), child: Center(child: CircularProgressIndicator()))
+                      : _errorLoadingRoutines != null
+                          ? Padding(padding: const EdgeInsets.symmetric(vertical: 30.0), child: Center(child: Text("Error al cargar rutinas: $_errorLoadingRoutines", style: const TextStyle(color: Colors.red))))
+                          : _groupedRoutinesByObjetivo.isEmpty
+                              ? const Padding(padding: EdgeInsets.symmetric(vertical: 30.0), child: Center(child: Text("No hay rutinas disponibles.")))
+                              : Column( // Usar Column para apilar los grupos de objetivos
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: _groupedRoutinesByObjetivo.entries.map((entry) {
+                                    String objetivo = entry.key;
+                                    List<Routine> routinesInObjetivo = entry.value;
+
+                                    return Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.only(top: 15.0, bottom: 8.0),
+                                          child: Text(
+                                            objetivo, // Nombre del grupo (ej. "Perder peso", "Hipertrofia")
+                                            style: TextStyle(
+                                                color: TColor.black,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w600),
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          height: 150, // Altura fija para la fila horizontal de WhatTrainRow
+                                                       // Ajusta esta altura según el alto de tu WhatTrainRow
+                                          child: ListView.builder(
+                                            scrollDirection: Axis.horizontal, // DESLIZABLE HORIZONTALMENTE
+                                            itemCount: routinesInObjetivo.length,
+                                            itemBuilder: (context, index) {
+                                              Routine routine = routinesInObjetivo[index];
+                                              return Padding( // Añadir padding alrededor de cada WhatTrainRow
+                                                padding: const EdgeInsets.only(right: 12.0, top: 4, bottom: 4),
+                                                child: SizedBox( // Darle un ancho a cada WhatTrainRow
+                                                  width: media.width * 0.8, // Ej: 80% del ancho de pantalla
+                                                  child: WhatTrainRow(
+                                                    routine: routine,
+                                                    onViewMorePressed: () {
+                                                      //Navigator.push(
+                                                      //  context,
+                                                      //  MaterialPageRoute(
+                                                      //    builder: (context) => DetalleEntranamientoView(routine: routine),
+                                                      //  ),
+                                                      //);
+                                                    },
+                                                  ),
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        ),
+                                      ],
+                                    );
+                                  }).toList(),
+                                ),
                   SizedBox(
                     height: media.width * 0.1,
                   ),

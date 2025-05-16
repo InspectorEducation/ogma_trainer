@@ -1,10 +1,16 @@
 class AppConfig {
   // --- API Configuration ---
-  static const String apiBaseUrl = "https://management-service-ogma.azure-api.net";
-  static const String userManagementBasePath = "/user-management";
-  // Podrías tener otras bases para otros microservicios
-  // static const String anotherServiceBasePath = "/another-service";
-  
+  //static const String apiBaseUrl = "https://management-service-ogma.azure-api.net";
+  //static const String userManagementBasePath = "/user-management";
+  static const String capacityControlBaseUrl = "http://http://192.168.1.7:5122";
+  static const String equipmentRutineServiceBaseUrl = "http://192.168.1.7:5067";
+  static const String bookingServiceBaseUrl = "https://ogma-repository-hub-booking-management.onrender.com";
+  static const String apiBaseUrl = "https://user-management-service-wd84.onrender.com";
+  static const String userManagementBasePath = "/api";
+  static const String capacityControlBasePath = "/api";
+  static const String bookingServiceBasePath = "/api";
+  static const String equipmentServiceBasePath = "/api";
+
   // --- Storage Keys ---
   static const String jwtTokenKey = "jwt_token";
   static const String userIdKey = "user_id";
@@ -16,7 +22,15 @@ class AppConfig {
     return "$apiBaseUrl$userManagementBasePath$endpoint";
   }
 
-  // static String getAnotherServiceUrl(String endpoint) {
-  //   return "$apiBaseUrl$anotherServiceBasePath$endpoint";
-  // }
+  static String getCapacityControlUrl(String endpoint) {
+    return "$capacityControlBaseUrl$capacityControlBasePath$endpoint";
+  }
+
+  static String getBookingServiceUrl(String endpoint) {
+    return "$bookingServiceBaseUrl$bookingServiceBasePath$endpoint";
+  }
+
+  static String getEquipmentRutineService(String endpoint) {
+    return "$equipmentRutineServiceBaseUrl$equipmentServiceBasePath$endpoint";
+  }
 }

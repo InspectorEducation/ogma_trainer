@@ -3,6 +3,8 @@ import 'package:ogma_trainer/config/app_config.dart';
 
 class StorageService {
   final _secureStorage = const FlutterSecureStorage();
+  static const String _checkInIdKey = "current_check_in_id";
+  static const String _checkedInGymIdKey = "current_checked_in_gym_id";
 
   // --- Métodos para el Token JWT ---
   Future<void> saveToken(String token) async {
@@ -34,10 +36,30 @@ class StorageService {
     return await _secureStorage.read(key: AppConfig.userEmailKey);
   }
 
+  Future<void> saveCheckInData({required String checkInId, required String gymId}) async {
+    await _secureStorage.write(key: _checkInIdKey, value: checkInId);
+    await _secureStorage.write(key: _checkedInGymIdKey, value: gymId);
+  }
+
+  Future<String?> getCheckInId() async {
+    return await _secureStorage.read(key: _checkInIdKey);
+  }
+
+  Future<String?> getCheckedInGymId() async {
+    return await _secureStorage.read(key: _checkedInGymIdKey);
+  }
+
+  Future<void> clearCheckInData() async {
+    await _secureStorage.delete(key: _checkInIdKey);
+    await _secureStorage.delete(key: _checkedInGymIdKey);
+  }
+
   // Método para borrar toda la información del usuario al cerrar sesión
   Future<void> clearAllUserData() async {
     await _secureStorage.delete(key: AppConfig.jwtTokenKey);
     await _secureStorage.delete(key: AppConfig.userIdKey);
     await _secureStorage.delete(key: AppConfig.userEmailKey);    
+    await clearCheckInData();
   }
+  
 }

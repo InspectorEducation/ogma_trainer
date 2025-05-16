@@ -1,8 +1,11 @@
 import 'package:calendar_agenda/calendar_agenda.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common/common.dart';
-import 'package:ogma_trainer/common_widget/round_button.dart';
+import 'package:ogma_trainer/models/booking_model.dart';
+import 'package:ogma_trainer/services/booking_service.dart';
+import 'package:ogma_trainer/services/storage_service.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/agregar_reserva_view.dart';
 
 class CalendarioEntrenamientoView extends StatefulWidget {
@@ -13,90 +16,188 @@ class CalendarioEntrenamientoView extends StatefulWidget {
 }
 
 class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoView> {
+  final CalendarAgendaController _calendarAgendaControllerAppBar = CalendarAgendaController();
+  final BookingService _bookingService = BookingService();
+  final StorageService _storageService = StorageService();
+    
+  late DateTime _selectedDate;
+  String? _currentUserId;
 
-  final CalendarAgendaController _calendarAgendaControllerAppBar =
-      CalendarAgendaController();
-  late DateTime _selectedDateAppBBar;
+  bool _isLoadingBookings = true;
+  String? _errorLoadingBookings;
+  List<Booking> _loadedBookings = [];
+  List<Booking> _bookingsForSelectedDay = [];
 
-  List eventArr = [
-    {
-      "name": "Press de Banca",
-      "machine": "Banco plano con barra",
-      "location": "Piso 1",
-      "start_time": "25/03/2025 07:30 AM",
-    },
-    {
-      "name": "Aperturas con Mancuernas",
-      "machine": "Banco inclinado + mancuernas",
-      "location": "Piso 1",
-      "start_time": "25/03/2025 07:50 AM",
-    },
-    {
-      "name": "Fondos en Paralelas",
-      "machine": "Barras paralelas",
-      "location": "Piso 2",
-      "start_time": "25/03/2025 08:10 AM",
-    },
-    {
-      "name": "Jalón al Pecho",
-      "machine": "Polea alta",
-      "location": "Piso 2",
-      "start_time": "25/03/2025 08:30 AM",
-    },
-    {
-      "name": "Remo con Barra",
-      "machine": "Barra olímpica",
-      "location": "Piso 1",
-      "start_time": "25/03/2025 08:50 AM",
-    },
-    {
-      "name": "Curl de Bíceps",
-      "machine": "Mancuernas",
-      "location": "Piso 3",
-      "start_time": "25/03/2025 09:10 AM",
-    },
-    {
-      "name": "Press Militar",
-      "machine": "Barra + Banco vertical",
-      "location": "Piso 1",
-      "start_time": "25/03/2025 09:30 AM",
-    },
-    {
-      "name": "Elevaciones Laterales",
-      "machine": "Mancuernas",
-      "location": "Piso 3",
-      "start_time": "25/03/2025 09:50 AM",
-    }
-];
+  // Lista de horas para el timeline (0 a 23)
+  final List<int> _hoursOfDay = List.generate(24, (index) => index);
 
   List selectDayEventArr = [];
+
+  bool _isCancellingBooking = false;
 
   @override
   void initState() {
     super.initState();
-    _selectedDateAppBBar = DateTime.now();
-    cargarListaEntrenamientos();
+    _selectedDate = DateTime.now();
+    _initializeData();
   }
 
-  void cargarListaEntrenamientos() {
-    var date = dateToStartDate(_selectedDateAppBBar);
-    selectDayEventArr = eventArr.map((wObj) {
-      return {
-        "name": wObj["name"],
-        "start_time": wObj["start_time"],
-        "date": stringToDate(wObj["start_time"].toString(),
-            formatStr: "dd/MM/yyyy hh:mm aa")
-      };
-    }).where((wObj) {
-      return dateToStartDate(wObj["date"] as DateTime) == date;
-    }).toList();
-
-    if( mounted  ) {
-      setState(() {
-        
-      });
+  Future<void> _initializeData() async {
+    await _getCurrentUserId();
+    if (_currentUserId != null) {
+      _fetchBookingsForDate(_selectedDate);
+    } else {
+      if (mounted) {
+        setState(() {
+          _isLoadingBookings = false;
+          _errorLoadingBookings = "No se pudo obtener el ID de usuario.";
+        });
+      }
     }
-  }      
+  }
+
+  Future<void> _getCurrentUserId() async {
+    _currentUserId = await _storageService.getUserId();
+  }
+
+  Future<void> _fetchBookingsForDate(DateTime date) async {
+    if (_currentUserId == null) return;
+    if (!mounted) return;
+
+    setState(() {
+      _isLoadingBookings = true;
+      _errorLoadingBookings = null;
+      _bookingsForSelectedDay = []; // Limpiar antes de cargar nuevas
+    });
+
+    try {
+      _loadedBookings = await _bookingService.getUserBookingsForDay(_currentUserId!, date);
+      _filterBookingsForSelectedDateAndTime(); // Filtrar y agrupar
+    } catch (e) {
+      _errorLoadingBookings = "Error al cargar reservas: ${e.toString()}";
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingBookings = false;
+        });
+      }
+    }
+  }
+
+  void _filterBookingsForSelectedDateAndTime() {
+    // Esta función ya no es necesaria si el ListView.builder filtra por hora directamente
+    // Pero si quieres pre-filtrar por día completo y luego por hora:
+    final selectedDayStart = dateToStartDate(_selectedDate); // Tu función helper
+     _bookingsForSelectedDay = _loadedBookings.where((booking) {
+       return dateToStartDate(booking.startTime) == selectedDayStart;
+     }).toList();
+     // No necesitas setState aquí si _fetchBookingsForDate lo hace al final
+  }
+
+  Widget _getReservationTypeIndicator(String type) {
+    IconData iconData;
+    Color color;
+    switch (type) {
+      case "Machine":
+        iconData = Icons.fitness_center; // Icono para máquina
+        color = Colors.blue;
+        break;
+      case "Trainer":
+        iconData = Icons.person; // Icono para entrenador
+        color = Colors.green;
+        break;
+      case "Class":
+        iconData = Icons.groups; // Icono para clase
+        color = Colors.orange;
+        break;
+      default:
+        iconData = Icons.event;
+        color = Colors.grey;
+    }
+    return Icon(iconData, color: color, size: 16);
+  }
+      
+  Future<void> _handleCancelBooking(BuildContext dialogContext, Booking booking) async {
+    // Mostrar diálogo de confirmación
+    final bool? confirmCancel = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext confirmCtx) {
+        return AlertDialog(
+          title: const Text("Confirmar Cancelación"),
+          content: Text("¿Estás seguro de que quieres cancelar la reserva para '${booking.itemName}'?"),
+          actions: <Widget>[
+            TextButton(
+              child: const Text("No"),
+              onPressed: () => Navigator.of(confirmCtx).pop(false),
+            ),
+            TextButton(
+              child: Text("Sí, Cancelar", style: TextStyle(color: Colors.red[700])),
+              onPressed: () => Navigator.of(confirmCtx).pop(true),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmCancel != true) {
+      return;
+    }
+
+    // Si se confirmó, cerrar el diálogo de detalles primero
+    Navigator.of(dialogContext).pop(); // Cierra el _showBookingDetailsDialog
+
+    setState(() {
+      _isCancellingBooking = true;     
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text("Cancelando reserva...")),
+    );
+
+
+    Map<String, dynamic> result;
+    try {
+      switch (booking.reservationType) {
+        case "Machine":
+          result = await _bookingService.cancelMachineBooking(booking.reservationId);
+          break;
+        case "Trainer":
+          result = await _bookingService.cancelTrainerBooking(booking.reservationId);
+          break;
+        case "Class":         
+          result = await _bookingService.cancelClassBookingRegistration(booking.reservationId);
+          break;
+        default:
+          result = {"success": false, "message": "Tipo de reserva desconocido: ${booking.reservationType}"};
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).removeCurrentSnackBar();
+        if (result["success"] == true) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result["message"] ?? "Reserva cancelada."), backgroundColor: Colors.green),
+          );          
+          _fetchBookingsForDate(_selectedDate);
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result["message"] ?? "Error al cancelar."), backgroundColor: Colors.red),
+          );
+        }
+      }
+    } catch (e) {
+       if (mounted) {
+         ScaffoldMessenger.of(context).removeCurrentSnackBar();
+         ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Ocurrió un error: ${e.toString()}"), backgroundColor: Colors.red),
+          );
+       }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isCancellingBooking = false;
+        });
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,6 +276,7 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
                   height: 15,
                 )),
             weekDay: WeekDay.short,
+            locale: 'es',
             dayNameFontSize: 12,
             dayNumberFontSize: 16,
             dayBGColor: Colors.grey.withOpacity(0.15),
@@ -184,18 +286,16 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
             fullCalendarScroll: FullCalendarScroll.horizontal,
             fullCalendarDay: WeekDay.short,
             selectedDateColor: Colors.white,
-            dateColor: Colors.black,
-            locale: 'es',
+            dateColor: Colors.black,            
 
-            initialDate: DateTime.now(),
+            initialDate: _selectedDate,
             calendarEventColor: TColor.primaryColor2,
             firstDate: DateTime.now().subtract(const Duration(days: 140)),
             lastDate: DateTime.now().add(const Duration(days: 60)),
 
             onDateSelected: (date) {
-              _selectedDateAppBBar = date;
-              cargarListaEntrenamientos();
-              
+              _selectedDate = date;
+              _fetchBookingsForDate(date);              
             },
             selectedDayLogo: Container(
               width: double.maxFinite,
@@ -210,217 +310,123 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: SizedBox(
-                width: media.width * 1.9,
-                child: ListView.separated(
-                    shrinkWrap: true,
-                    itemBuilder: (context, index) {
-                      var timelineDataWidth = (media.width * 1.5) - (80 + 40);
-                      var availWidth = (media.width * 1.2) - (80 + 40);
-                      var slotArr = selectDayEventArr.where((wObj) {
-                        return (wObj["date"] as DateTime).hour == index;
-                      }).toList();
+            child: _isLoadingBookings
+                ? const Center(child: CircularProgressIndicator())
+                : _errorLoadingBookings != null
+                    ? Center(child: Text(_errorLoadingBookings!, style: const TextStyle(color: Colors.red)))
+                    : _bookingsForSelectedDay.isEmpty && !_isLoadingBookings
+                        ? Center(child: Text("No tienes reservas para este día.", style: TextStyle(color: TColor.gray, fontSize: 16)))
+                        : SingleChildScrollView(
+                          child: SingleChildScrollView( // Scroll horizontal para el timeline
+                              scrollDirection: Axis.horizontal,
+                              child: SizedBox( // Ancho mayor que la pantalla para el timeline
+                                width: media.width * 1.9, // Ajusta según necesidad
+                                child: ListView.separated(
+                                    shrinkWrap: true, // Importante para ListView dentro de otro scrollable
+                                    physics: const NeverScrollableScrollPhysics(), // Deshabilitar scroll del ListView
+                                    itemBuilder: (context, hourIndex) { // Itera sobre las horas del día
+                                      // Encuentra las reservas para esta hora específica
+                                      List<Booking> bookingsInThisHour = _bookingsForSelectedDay
+                                          .where((booking) => booking.startHour == hourIndex)
+                                          .toList();
+                                      // Ordenar por minuto de inicio
+                                      bookingsInThisHour.sort((a, b) => a.startMinute.compareTo(b.startMinute));
+                          
+                                      return Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                                        height: 60, // Aumentar altura para mejor visualización
+                                        child: Row(
+                                          mainAxisAlignment: MainAxisAlignment.start,
+                                          children: [
+                                            SizedBox(
+                                              width: 80,
+                                              child: Text(
+                                                getTime(hourIndex * 60), // Tu función helper
+                                                style: TextStyle(color: TColor.black, fontSize: 12),
+                                              ),
+                                            ),
+                                            Expanded(
+                                                child: Stack( // Usar Stack para superponer reservas si se solapan (simple)
+                                              children: bookingsInThisHour.map((booking) {
+                                                
+                                                double availableWidth = (media.width * 1.5) - (80 + 40); // Ancho total - (hora + padding)
+                                                double slotWidth = availableWidth / 2.5; // Ancho para cada slot, ajusta el divisor
+                                                double startOffsetFraction = booking.startMinute / 60.0;                    
 
-                      return Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        height: 40,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.start,
-                          children: [
-                            SizedBox(
-                              width: 80,
-                              child: Text(
-                                getTime(index * 60),
-                                style: TextStyle(
-                                  color: TColor.black,
-                                  fontSize: 12,
-                                ),
+                                                bool isCancelled = booking.status.toLowerCase() == "cancelada";
+                                                LinearGradient pillGradient;
+                                                Color pillTextColor = TColor.white;
+
+                                                if (isCancelled) {
+                                                  pillGradient = LinearGradient(                                                   
+                                                    colors: [Colors.red[600]!, Colors.red[400]!],
+                                                    begin: Alignment.topLeft,
+                                                    end: Alignment.bottomRight,
+                                                  );                                                  
+                                                } else {                                                  
+                                                  pillGradient = LinearGradient(colors: TColor.primaryG);
+                                                }
+      
+                                                return Positioned(
+                                                  
+                                                  left: (availableWidth * startOffsetFraction * 0.8), // 0.8 para no ir al borde
+                                                  top: 5,
+                                                  bottom: 5,
+                                                  child: InkWell(
+                                                    onTap: () {
+                                                      // Mostrar diálogo con detalles de la reserva
+                                                      _showBookingDetailsDialog(context, booking);
+                                                    },
+                                                    child: Container(
+                                                      width: slotWidth,
+                                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                      decoration: BoxDecoration(
+                                                        gradient: pillGradient,
+                                                        borderRadius: BorderRadius.circular(8),
+                                                        boxShadow: [
+                                                          BoxShadow(
+                                                            color: Colors.black.withOpacity(0.15),
+                                                            blurRadius: 3,
+                                                            offset: const Offset(0, 1),
+                                                          )
+                                                        ],
+                                                      ),
+                                                      child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                          _getReservationTypeIndicator(booking.reservationType),
+                                                          const SizedBox(width: 4),
+                                                          Expanded(
+                                                            child: Text(
+                                                              "${booking.itemName} (${DateFormat('HH:mm').format(booking.startTime)})",
+                                                              maxLines: 2, // Permitir dos líneas
+                                                              overflow: TextOverflow.ellipsis,
+                                                              style: TextStyle(color: TColor.white, fontSize: 11),
+                                                            ),
+                                                          ),
+                                                          if (isCancelled)
+                                                          Padding(
+                                                            padding: const EdgeInsets.only(left: 3.0),
+                                                            child: Icon(Icons.cancel_outlined, color: TColor.white.withOpacity(0.7), size: 13),
+                                                          ),
+                                                        ],
+                                                      ),
+                                                    ),
+                                                  ),
+                                                );
+                                              }).toList(),
+                                            ))
+                                          ],
+                                        ),
+                                      );
+                                    },
+                                    separatorBuilder: (context, index) {
+                                      return Divider(color: TColor.gray.withOpacity(0.2), height: 1);
+                                    },
+                                    itemCount: _hoursOfDay.length), // Itera 24 veces (por cada hora)
                               ),
                             ),
-                            if (slotArr.isNotEmpty)
-                              Expanded(
-                                  child: Stack(
-                                alignment: Alignment.centerLeft,
-                                children: slotArr.map((sObj) {
-                                  var min = (sObj["date"] as DateTime).minute;
-                                  //(0 to 2)
-                                  var pos = (min / 60) * 2 - 1;
-
-                                  return Align(
-                                    alignment: Alignment(pos, 0),
-                                    child: InkWell(
-                                      onTap: () {
-                                        showDialog(
-                                          context: context,
-                                          builder: (context) {
-                                            return AlertDialog(
-                                              backgroundColor: Colors.transparent,
-                                              contentPadding: EdgeInsets.zero,
-                                              content: Container(
-                                                padding: const EdgeInsets.symmetric( vertical:15 , horizontal: 20 ),
-                                                decoration: BoxDecoration(
-                                                  color: TColor.white,
-                                                  borderRadius:
-                                                      BorderRadius.circular(20),
-                                                ),
-                                                child: Column(
-                                                  mainAxisSize: MainAxisSize.min,
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                      children: [
-                                                        InkWell(
-                                                          onTap: () {
-                                                            Navigator.pop(
-                                                                context);
-                                                          },
-                                                          child: Container(
-                                                            margin:
-                                                                const EdgeInsets
-                                                                    .all(8),
-                                                            height: 40,
-                                                            width: 40,
-                                                            alignment:
-                                                                Alignment.center,
-                                                            decoration: BoxDecoration(
-                                                                color: TColor
-                                                                    .lightGray,
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            10)),
-                                                            child: Image.asset(
-                                                              "assets/img/closed_btn.png",
-                                                              width: 15,
-                                                              height: 15,
-                                                              fit: BoxFit.contain,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                        Text(
-                                                          "Workout Schedule",
-                                                          style: TextStyle(
-                                                              color: TColor.black,
-                                                              fontSize: 16,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700),
-                                                        ),
-                                                        InkWell(
-                                                          onTap: () {},
-                                                          child: Container(
-                                                            margin:
-                                                                const EdgeInsets
-                                                                    .all(8),
-                                                            height: 40,
-                                                            width: 40,
-                                                            alignment:
-                                                                Alignment.center,
-                                                            decoration: BoxDecoration(
-                                                                color: TColor
-                                                                    .lightGray,
-                                                                borderRadius:
-                                                                    BorderRadius
-                                                                        .circular(
-                                                                            10)),
-                                                            child: Image.asset(
-                                                              "assets/img/more_btn.png",
-                                                              width: 15,
-                                                              height: 15,
-                                                              fit: BoxFit.contain,
-                                                            ),
-                                                          ),
-                                                        )
-                                                      ],
-                                                    ),
-                                                    const SizedBox(
-                                                      height: 15,
-                                                    ),
-                                                    Text(
-                                                      sObj["name"].toString(),
-                                                      style: TextStyle(
-                                                          color: TColor.black,
-                                                          fontSize: 14,
-                                                          fontWeight:
-                                                              FontWeight.w700),
-                                                    ),
-                                                    const SizedBox(   
-                                                      height: 4,
-                                                    ),
-                                                    Row(children: [
-                                                      Image.asset(
-                                                        "assets/img/time_workout.png",
-                                                        height: 20,
-                                                        width: 20,
-                                                      ),
-                                                      const SizedBox(
-                                                        width: 8,
-                                                      ),
-                                                      Text(
-                                                        "${ getDayTitle(sObj["start_time"].toString()) } | ${getStringDateToOtherFormate(sObj["start_time"].toString(), outFormatStr: "h:mm aa")}",
-                                                        style: TextStyle(
-                                                            color: TColor.gray,
-                                                            fontSize: 12),
-                                                      )
-                                                    ]),
-                                            
-                                                     const SizedBox(
-                                                      height: 15,
-                                                    ),
-                                            
-                                                    RoundButton(
-                                                        title: "Iniciar Entrenamiento",
-                                                        onPressed: () {}),
-                                            
-                                                  ],
-                                                ),
-                                              ),
-                                            );
-                                          },
-                                        );
-                                      },
-                                      child: Container(
-                                        height: 35,
-                                        width: availWidth * 0.5,
-                                        padding: const EdgeInsets.symmetric(
-                                            horizontal: 8),
-                                        alignment: Alignment.centerLeft,
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                              colors: TColor.primaryG),
-                                          borderRadius:
-                                              BorderRadius.circular(17.5),
-                                        ),
-                                        child: Text(
-                                          "${sObj["name"].toString()}, ${getStringDateToOtherFormate(sObj["start_time"].toString(), outFormatStr: "h:mm aa")}",
-                                          maxLines: 1,
-                                          style: TextStyle(
-                                            color: TColor.white,
-                                            fontSize: 12,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  );
-                                }).toList(),
-                              ))
-                          ],
                         ),
-                      );
-                    },
-                    separatorBuilder: (context, index) {
-                      return Divider(
-                        color: TColor.gray.withOpacity(0.2),
-                        height: 1,
-                      );
-                    },
-                    itemCount: 24),
-              ),
-            ),
           ),
         ],
       ),
@@ -430,7 +436,7 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
               context,
               MaterialPageRoute(
                   builder: (context) => AgregarReservaView(
-                        date: _selectedDateAppBBar,
+                        date: _selectedDate,
                       )));
         },
         child: Container(
@@ -450,6 +456,72 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
             color: TColor.white,
           ),
         ),
+      ),
+    );
+  }
+
+  void _showBookingDetailsDialog(BuildContext context, Booking booking) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          backgroundColor: TColor.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: Row(
+            children: [
+              _getReservationTypeIndicator(booking.reservationType),
+              const SizedBox(width: 10),
+              Expanded(child: Text(booking.reservationType, style: TextStyle(color: TColor.black, fontWeight: FontWeight.bold))),
+              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(context))
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                booking.itemName,
+                style: TextStyle(color: TColor.black, fontSize: 18, fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              _buildDetailRow(Icons.calendar_today, "Fecha:", DateFormat('dd/MM/yyyy').format(booking.startTime)),
+              _buildDetailRow(Icons.access_time, "Inicio:", DateFormat('HH:mm').format(booking.startTime)),
+              _buildDetailRow(Icons.access_time_filled, "Fin:", DateFormat('HH:mm').format(booking.endTime)),
+              _buildDetailRow(Icons.info_outline, "Estado:", booking.status),
+              if (booking.attended != null)
+                 _buildDetailRow(booking.attended! ? Icons.check_circle : Icons.cancel, "Asistió:", booking.attended! ? "Sí" : "No"),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: Text("Cerrar", style: TextStyle(color: TColor.gray)),
+            ),
+            // Botón para cancelar la reserva
+            // Solo mostrar si el estado de la reserva lo permite (ej. "Confirmada")
+            if (booking.status.toLowerCase() == "confirmada") // O la lógica que determine si se puede cancelar
+              TextButton(
+                onPressed: _isCancellingBooking ? null : () => _handleCancelBooking(dialogContext, booking),
+                child: _isCancellingBooking
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2,))
+                    : Text("Cancelar Reserva", style: TextStyle(color: Colors.red[700])),
+              ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(IconData icon, String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          Icon(icon, size: 18, color: TColor.gray),
+          const SizedBox(width: 8),
+          Text("$label ", style: TextStyle(color: TColor.gray, fontSize: 14, fontWeight: FontWeight.w500)),
+          Expanded(child: Text(value, style: TextStyle(color: TColor.black, fontSize: 14))),
+        ],
       ),
     );
   }

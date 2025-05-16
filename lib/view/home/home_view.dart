@@ -3,7 +3,11 @@ import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/siguiente_entrenamiento_row.dart';
 import 'package:ogma_trainer/common_widget/what_train_row.dart';
+import 'package:ogma_trainer/services/capacity_service.dart';
+import 'package:ogma_trainer/services/storage_service.dart';
+import 'package:ogma_trainer/view/formularios/formulario_sintomas_view.dart';
 import 'package:ogma_trainer/view/login/login_view.dart';
+import 'package:ogma_trainer/view/paso_a_paso/leer_codigo_qr_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/detalle_entranamiento_view.dart';
 import 'package:simple_animation_progress_bar/simple_animation_progress_bar.dart';
 import 'package:ogma_trainer/services/auth_service.dart';
@@ -16,8 +20,16 @@ class HomeView extends StatefulWidget {
 }
 
 class _HomeViewState extends State<HomeView> {
-
   final AuthService _authService = AuthService();
+  final CapacityService _capacityService = CapacityService();
+  final StorageService _storageService = StorageService();
+
+  bool _isLoadingCheckInStatus = true;
+  String? _currentCheckInId;
+  String? _checkedInGymId;
+  int? _currentUserId;
+
+  List ids_availables_gyms_for_user = [1, 2, 3];
 
   List latestArr = [
     {
@@ -48,16 +60,64 @@ class _HomeViewState extends State<HomeView> {
     }
   ];
 
+  final List<Map<String, String>> questionsSym = [
+    {
+      "question":
+          "¿Tienes fiebre (mayor a 38°C), tos seca o dificultad para respirar?"
+    },
+    {
+      "question":
+          "¿Has perdido recientemente el sentido del olfato o del gusto?"
+    },
+    {
+      "question":
+          "¿Tienes dolor de garganta, congestión nasal o fatiga inusual?"
+    },
+    {
+      "question":
+          "¿Has estado en contacto con alguien diagnosticado con COVID-19 en los últimos 14 días?"
+    },
+    {
+      "question":
+          "¿Has estado en lugares con brotes recientes de COVID-19 en los últimos 14 días?"
+    }
+  ];
+
   bool workoutNow = true;
 
   @override
   void initState() {
     super.initState();
-    if (workoutNow) {
+    _loadInitialData();
+  }
+
+  Future<void> _loadInitialData() async {
+    await _loadCheckInStatus();
+    await _getCurrentUserId(); // Obtener ID de usuario
+    // bool workoutNow = await _checkIfWorkoutIsSoon(); // Ejemplo
+    if (workoutNow && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        _showWorkoutAlert(context);
+        if (mounted) _showWorkoutAlert(context);
       });
     }
+    if (mounted) {
+      setState(() {
+        _isLoadingCheckInStatus = false; // Terminar carga
+      });
+    }
+  }
+
+  Future<void> _getCurrentUserId() async {
+    final userIdStr = await _storageService.getUserId();
+    if (userIdStr != null) {
+      _currentUserId = int.tryParse(userIdStr);
+    }
+  }
+
+  Future<void> _loadCheckInStatus() async {
+    _currentCheckInId = await _storageService.getCheckInId();
+    _checkedInGymId = await _storageService.getCheckedInGymId();
+    debugPrint("CheckInId EN SISTEMA: $_currentCheckInId");
   }
 
   void _showWorkoutAlert(BuildContext context) {
@@ -67,7 +127,7 @@ class _HomeViewState extends State<HomeView> {
         return AlertDialog(
           title: const Text("¡Entrenamiento Próximo!"),
           content: const Text(
-              "Tienes un entrenamiento programado, empieza en 15 minutos"),              
+              "Tienes un entrenamiento programado, empieza en 15 minutos"),
           actions: <Widget>[
             RoundButton(
                 title: "¡Entendido!",
@@ -83,7 +143,7 @@ class _HomeViewState extends State<HomeView> {
     );
   }
 
-  Future<void> _handleLogout() async {   
+  Future<void> _handleLogout() async {
     final bool? confirmLogout = await showDialog<bool>(
       context: context,
       builder: (BuildContext context) {
@@ -107,11 +167,11 @@ class _HomeViewState extends State<HomeView> {
         );
       },
     );
-    
+
     if (confirmLogout != true) {
       return;
     }
-    
+
     await _authService.logout();
 
     if (mounted) {
@@ -123,10 +183,131 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
-  
+  Future<void> _performCheckIn(
+      BuildContext context, Map<String, dynamic> qrData) async {
+    if (_currentUserId == null) throw Exception("ID de usuario no disponible.");
+
+    dynamic rawGymId = qrData['Name'];
+    int? gymIdFromQR;
+    if (rawGymId is int)
+      gymIdFromQR = rawGymId;
+    else if (rawGymId is String) gymIdFromQR = int.tryParse(rawGymId);
+
+    if (gymIdFromQR == null)
+      throw Exception("QR no contiene un ID de gimnasio válido.");
+
+    final result = await _capacityService.checkInToGym(
+      userId: _currentUserId!,
+      gymId: gymIdFromQR,
+    );
+
+    if (result["success"] == true) {
+      final Map<String, dynamic>? data =
+          result["data"] as Map<String, dynamic>?;
+      final int? checkInIdFromData = data?["checkInId"] as int?;
+      final bool requiresSymptomForm = data?["requiresSymptomForm"] as bool? ?? false;
+
+      if (checkInIdFromData != null) {
+        final String checkInIdStr = checkInIdFromData.toString();        
+        final String gymIdStr =
+            (data?["gymId"] as int? ?? gymIdFromQR).toString();
+
+        await _storageService.saveCheckInData(
+            checkInId: checkInIdStr, gymId: gymIdStr);
+                    
+        if (mounted) {
+          setState(() {
+            _currentCheckInId = checkInIdStr;
+            _checkedInGymId = gymIdStr;
+          });          
+        }
+        if (Navigator.canPop(context))
+            Navigator.pop(context);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+                content: Text(result["message"] ?? "Ingreso exitoso!"),
+                backgroundColor: Colors.green),
+        );
+
+        //si validacion de sintomas esta prendido
+        if (requiresSymptomForm) {          
+           if (mounted) {
+               Navigator.pushReplacement(
+                 context,
+                 MaterialPageRoute(
+                   builder: (context) => FormularioSintomasView(checkInId: checkInIdFromData, userId: _currentUserId!, questions: questionsSym),
+                 ),
+               );
+           }
+        }
+      } else {
+        debugPrint(
+            "Check-in reportado como exitoso, pero falta 'checkInId' en los datos devueltos: $result");
+        throw Exception(result["message"] ??
+            "Respuesta de check-in incompleta desde el servidor.");
+      }
+    } else {
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      debugPrint("Fallo en checkInToGym, resultado: $result");
+      throw Exception(result["message"] ?? "Error durante el check-in.");
+    }
+  }
+
+  Future<void> _performCheckOut(
+      BuildContext context, Map<String, dynamic> qrData) async {
+    if (_currentUserId == null) throw Exception("ID de usuario no disponible.");
+    if (_checkedInGymId == null)
+      throw Exception("No hay check-in activo para realizar check-out.");
+
+    // Validamos que el QR corresponda al gym donde estamos checked-in
+    dynamic rawGymIdQR = qrData['Name'];
+    int? gymIdFromQR;
+    if (rawGymIdQR is int)
+      gymIdFromQR = rawGymIdQR;
+    else if (rawGymIdQR is String) gymIdFromQR = int.tryParse(rawGymIdQR);
+
+    int? checkedInGymIdInt = int.tryParse(_checkedInGymId!); // El ID guardado
+
+    if (gymIdFromQR == null ||
+        checkedInGymIdInt == null ||
+        gymIdFromQR != checkedInGymIdInt) {
+      throw Exception(
+          "Este QR no corresponde al gimnasio donde hiciste check-in.");
+    }
+
+    final result = await _capacityService.checkOutFromGym(
+      userId: _currentUserId!,
+      gymId: checkedInGymIdInt,
+    );
+
+    if (result["success"] == true) {
+      await _storageService.clearCheckInData();
+      if (mounted) {
+        setState(() {
+          _currentCheckInId = null;
+          _checkedInGymId = null;
+        });
+        if (Navigator.canPop(context)) Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(result["message"] ?? "Check-out exitoso!"),
+              backgroundColor: Colors.green),
+        );
+      }
+    } else {
+      if (Navigator.canPop(context)) Navigator.pop(context);
+      throw Exception(result["message"] ?? "Error durante el check-out.");
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var media = MediaQuery.of(context).size;
+    if (_isLoadingCheckInStatus) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    bool isCheckedIn = _currentCheckInId != null;
     return Scaffold(
       backgroundColor: TColor.white,
       body: SingleChildScrollView(
@@ -277,6 +458,143 @@ class _HomeViewState extends State<HomeView> {
               SizedBox(
                 height: media.width * 0.05,
               ),
+              // --- INICIO NUEVA SECCIÓN: INGRESAR AL GYM ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    isCheckedIn ? "Salir del GYM" : "Ingresar al GYM",
+                    style: TextStyle(
+                        color: TColor.black,
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700),
+                  ),
+                ],
+              ),
+              SizedBox(height: media.width * 0.03),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 15, horizontal: 15),
+                decoration: BoxDecoration(
+                    color: isCheckedIn
+                        ? TColor.secondaryColor1.withOpacity(0.1)
+                        : TColor.primaryColor1.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(
+                        color: (isCheckedIn
+                                ? TColor.secondaryColor1
+                                : TColor.primaryColor1)
+                            .withOpacity(0.3))),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      // Para que el texto no se desborde si es largo
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            isCheckedIn
+                                ? "Registra tu salida"
+                                : "Accede a tu gimnasio",
+                            style: TextStyle(
+                                color: TColor.black,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600),
+                          ),
+                          SizedBox(height: media.width * 0.01),
+                          Text(
+                            isCheckedIn
+                                ? "Escanea el código QR en la salida para finalizar."
+                                : "Escanea el código QR en la entrada para continuar.",
+                            style: TextStyle(color: TColor.gray, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 15),
+                    SizedBox(
+                      width: media.width * 0.35,
+                      height: 45,
+                      child: RoundButton(
+                        title: isCheckedIn ? "Escanear Salida" : "Leer QR",
+                        icon: "assets/img/qr.png",
+                        type: isCheckedIn
+                            ? RoundButtonType.bgSGradient
+                            : RoundButtonType.bgGradient,
+                        fontSize: 14,
+                        onPressed: () async {
+                          if (_currentUserId == null) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                    content: Text(
+                                        "Error: ID de usuario no disponible.")));
+                            return;
+                          }
+                          if (isCheckedIn) {
+                            // --- CHECK-OUT ---
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => LeerCodigoQRView(
+                                  processingMessage: "Registrando tu salida...",
+                                  successMessage:
+                                      "¡Hasta pronto! Salida registrada.",
+                                  customValidationLogic: (qrData, expected) {
+                                    // Validar que el QR sea del gym donde se hizo check-in
+                                    dynamic rawGymIdQR = qrData['Name'];
+                                    int? gymIdFromQR;
+                                    if (rawGymIdQR is int)
+                                      gymIdFromQR = rawGymIdQR;
+                                    else if (rawGymIdQR is String)
+                                      gymIdFromQR = int.tryParse(rawGymIdQR);
+                                    int? checkedInGymIdInt =
+                                        int.tryParse(_checkedInGymId ?? "");
+
+                                    return gymIdFromQR != null &&
+                                        checkedInGymIdInt != null &&
+                                        gymIdFromQR == checkedInGymIdInt;
+                                  },
+                                  onValidQR: _performCheckOut,
+                                ),
+                              ),
+                            );
+                          } else {
+                            // --- CHECK-IN ---
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => LeerCodigoQRView(
+                                  processingMessage:
+                                      "Registrando tu ingreso...",
+                                  successMessage:
+                                      "¡Bienvenido! Ingreso registrado.",
+                                  customValidationLogic: (qrData, expected) {
+                                    dynamic rawGymId = qrData['Name'];
+                                    int? gymIdFromQR;
+                                    if (rawGymId is int)
+                                      gymIdFromQR = rawGymId;
+                                    else if (rawGymId is String)
+                                      gymIdFromQR = int.tryParse(rawGymId);
+                                    if (gymIdFromQR == null) return false;
+                                    return ids_availables_gyms_for_user
+                                        .contains(gymIdFromQR);
+                                  },
+                                  onValidQR: _performCheckIn,
+                                ),
+                              ),
+                            );
+                          }
+                        },
+                      ),
+                    )
+                  ],
+                ),
+              ),
+              SizedBox(
+                  height: media.width *
+                      0.04), // Espacio después de la nueva sección
+              // --- FIN NUEVA SECCIÓN ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -370,25 +688,7 @@ class _HomeViewState extends State<HomeView> {
                   )
                 ],
               ),
-              ListView.builder(
-                  padding: EdgeInsets.zero,
-                  physics: const NeverScrollableScrollPhysics(),
-                  shrinkWrap: true,
-                  itemCount: whatArr.length,
-                  itemBuilder: (context, index) {
-                    var wObj = whatArr[index] as Map? ?? {};
-                    return InkWell(
-                        onTap: () {
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                  builder: (context) =>
-                                      DetalleEntranamientoView(
-                                        dObj: wObj,
-                                      )));
-                        },
-                        child: WhatTrainRow(wObj: wObj));
-                  }),
+              
               SizedBox(
                 height: media.width * 0.1,
               ),

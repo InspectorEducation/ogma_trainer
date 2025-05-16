@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/gradient_icon_button.dart';
+import 'package:ogma_trainer/view/paso_a_paso/entrenamiento_flow_view.dart';
 import 'package:ogma_trainer/view/paso_a_paso/leer_codigo_qr_view.dart';
 
 class EstoyListoQRView extends StatelessWidget {
@@ -120,10 +121,26 @@ class EstoyListoQRView extends StatelessWidget {
                     icon: Icons.qr_code_scanner,
                     onPressed: () {
                       Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => LeerCodigoQRView(expectedMachineId: '1',),
-                          ));
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => LeerCodigoQRView(
+                            expectedContent:
+                                "1", // El ID que esperas del QR de la máquina
+                            processingMessage: "Validando máquina...",
+                            successMessage:
+                                "Máquina validada. Iniciando entrenamiento.",
+                            onValidQR: (ctx, qrData) async {                             
+                              Navigator.pushReplacement(
+                                ctx,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const EntrenamientoFlowView(),
+                                ),
+                              );                              
+                            },                            
+                          ),
+                        ),
+                      );
                     },
                   ),
                 ],
