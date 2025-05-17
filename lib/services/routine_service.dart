@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:ogma_trainer/config/app_config.dart';
+import 'package:ogma_trainer/models/machine_model.dart';
 import 'package:ogma_trainer/models/routine_model.dart';
 import 'package:ogma_trainer/services/storage_service.dart';
 
@@ -32,6 +33,58 @@ class RoutineService {
     } catch (e) {
       debugPrint("Excepción al obtener rutinas: $e");
       throw Exception("Excepción al obtener rutinas: $e");
+    }
+  }
+
+  Future<Routine> getRoutineDetails(int rutinaId) async {
+    final Uri url = Uri.parse(AppConfig.getEquipmentRutineService("/Routines/$rutinaId"));
+    final token = await _storageService.getToken();
+    debugPrint("URL DETALLE ENTRENAMIENTO: $url");
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          if (token != null) "Authorization": "Bearer $token",          
+        },
+      );
+
+      if (response.statusCode == 200) {        
+        return Routine.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      } else {
+        debugPrint("Error al obtener detalles de la rutina $rutinaId (${response.statusCode}): ${response.body}");
+        throw Exception("Error al obtener detalles de la rutina: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Excepción al obtener detalles de la rutina $rutinaId: $e");
+      throw Exception("Excepción al obtener detalles de la rutina: $e");
+    }
+  }
+
+   Future<List<Machine>> getRequiredMachinesForRoutine(int rutinaId) async {    
+    final Uri url = Uri.parse(AppConfig.getEquipmentRutineService("/Routines/$rutinaId/required-machines"));
+    final token = await _storageService.getToken(); // Si se necesita token
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          if (token != null) "Authorization": "Bearer $token",          
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> body = jsonDecode(response.body);
+        List<Machine> machines = body.map((dynamic item) => Machine.fromJson(item)).toList();
+        return machines;
+      } else {
+        debugPrint("Error al obtener máquinas requeridas para rutina $rutinaId (${response.statusCode}): ${response.body}");        
+        return [];       
+      }
+    } catch (e) {
+      debugPrint("Excepción al obtener máquinas requeridas para rutina $rutinaId: $e");
+      return [];      
     }
   }
 }

@@ -322,12 +322,12 @@ class _SeguimientoEntrenamientoViewState extends State<SeguimientoEntrenamientoV
                                                   child: WhatTrainRow(
                                                     routine: routine,
                                                     onViewMorePressed: () {
-                                                      //Navigator.push(
-                                                      //  context,
-                                                      //  MaterialPageRoute(
-                                                      //    builder: (context) => DetalleEntranamientoView(routine: routine),
-                                                      //  ),
-                                                      //);
+                                                      Navigator.push(
+                                                        context,
+                                                        MaterialPageRoute(
+                                                          builder: (context) => DetalleEntranamientoView(routine: routine),
+                                                        ),
+                                                      );
                                                     },
                                                   ),
                                                 ),

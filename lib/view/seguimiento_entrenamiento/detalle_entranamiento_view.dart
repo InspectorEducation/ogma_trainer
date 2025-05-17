@@ -3,13 +3,15 @@ import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/exercises_set_section.dart';
 import 'package:ogma_trainer/common_widget/icon_title_next_row.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
-import 'package:ogma_trainer/view/paso_a_paso/entrenamiento_flow_view.dart';
+import 'package:ogma_trainer/models/machine_model.dart';
+import 'package:ogma_trainer/models/routine_model.dart';
+import 'package:ogma_trainer/services/routine_service.dart';
 import 'package:ogma_trainer/view/paso_a_paso/estoy_listo_qr_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/pasos_ejercicios.dart';
 
 class DetalleEntranamientoView extends StatefulWidget {
-  final Map dObj;
-  const DetalleEntranamientoView({super.key, required this.dObj});
+  final Routine routine;
+  const DetalleEntranamientoView({super.key, required this.routine});
 
   @override
   State<DetalleEntranamientoView> createState() =>
@@ -17,77 +19,156 @@ class DetalleEntranamientoView extends StatefulWidget {
 }
 
 class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
-  List latestArr = [
-    {
-      "image": "assets/img/Workout1.png",
-      "title": "Fullbody Workout",
-      "time": "Today, 03:00pm"
-    },
-    {
-      "image": "assets/img/Workout2.png",
-      "title": "Upperbody Workout",
-      "time": "June 05, 02:00pm"
-    },
-  ];
+  final RoutineService _routineService = RoutineService();
 
-  List youArr = [
-    {"image": "assets/img/barbell.png", "title": "Barbell"},
-    {"image": "assets/img/skipping_rope.png", "title": "Skipping Rope"},
-    {"image": "assets/img/bottle.png", "title": "Bottle 1 Liters"},
-  ];
+  Routine? _detailedRoutine; // Para almacenar la rutina con todos los detalles
+  bool _isLoading = true;
+  String? _errorMessage;
 
-  List exercisesArr = [
-    {
-      "name": "Set 1",
-      "set": [
-        {"image": "assets/img/img_1.png", "title": "Warm Up", "value": "05:00"},
-        {
-          "image": "assets/img/img_2.png",
-          "title": "Jumping Jack",
-          "value": "12x"
-        },
-        {"image": "assets/img/img_1.png", "title": "Skipping", "value": "15x"},
-        {"image": "assets/img/img_2.png", "title": "Squats", "value": "20x"},
-        {
-          "image": "assets/img/img_1.png",
-          "title": "Arm Raises",
-          "value": "00:53"
-        },
-        {
-          "image": "assets/img/img_2.png",
-          "title": "Rest and Drink",
-          "value": "02:00"
-        },
-      ],
-    },
-    {
-      "name": "Set 2",
-      "set": [
-        {"image": "assets/img/img_1.png", "title": "Warm Up", "value": "05:00"},
-        {
-          "image": "assets/img/img_2.png",
-          "title": "Jumping Jack",
-          "value": "12x"
-        },
-        {"image": "assets/img/img_1.png", "title": "Skipping", "value": "15x"},
-        {"image": "assets/img/img_2.png", "title": "Squats", "value": "20x"},
-        {
-          "image": "assets/img/img_1.png",
-          "title": "Arm Raises",
-          "value": "00:53"
-        },
-        {
-          "image": "assets/img/img_2.png",
-          "title": "Rest and Drink",
-          "value": "02:00"
-        },
-      ],
+  // Lista para agrupar ejercicios por día
+  Map<int, List<RoutineExerciseDetail>> _exercisesByDay = {};
+
+  List<Machine> _requiredMachines = [];  
+
+  @override
+  void initState() {
+    super.initState();
+    _detailedRoutine = widget.routine;
+    _loadRoutineDetails();
+  }
+
+  Future<void> _loadRoutineDetails() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+      _requiredMachines = [];
+    });
+    try {      
+      final routineDetails = await _routineService.getRoutineDetails(widget.routine.idRutina);
+      _detailedRoutine = routineDetails;
+      _groupExercisesByDay();
+      
+      if (_detailedRoutine != null) {
+        _requiredMachines = await _routineService.getRequiredMachinesForRoutine(_detailedRoutine!.idRutina);
+      }
+
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
     }
-  ];
+  }
+
+  void _groupExercisesByDay() {
+    if (_detailedRoutine == null) return;
+    _exercisesByDay = {};
+    for (var exerciseDetail in _detailedRoutine!.diasEjercicios) {
+      _exercisesByDay
+          .putIfAbsent(exerciseDetail.diaNumero, () => [])
+          .add(exerciseDetail);
+    }
+    _exercisesByDay.forEach((dia, ejercicios) {
+      ejercicios.sort((a, b) => a.ordenEnDia.compareTo(b.ordenEnDia));
+    });
+  }
+
+  Widget _buildExerciseItem(RoutineExerciseDetail exercise) {
+    return Card(
+      margin: const EdgeInsets.symmetric(vertical: 6.0),
+      elevation: 1.0,
+      child: ListTile(
+        //leading: Image.asset("assets/img/img_1.png",width: 40, height: 40), // Necesitarías imágenes para ejercicios
+        leading: CircleAvatar(backgroundColor: TColor.lightGray, child: Text(exercise.ordenEnDia.toString())),
+        title: Text(exercise.ejercicioNombre,
+            style: TextStyle(fontWeight: FontWeight.w500, color: TColor.black)),
+        subtitle: Text(
+          "Series: ${exercise.series}, Reps: ${exercise.repeticiones}, Descanso: ${exercise.descansoSegundos}s",
+          style: TextStyle(fontSize: 12, color: TColor.gray),
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          // TODO: Navegar a una vista de detalle del ejercicio si la tienes
+          // Navigator.push(context, MaterialPageRoute(builder: (context) => PasosEjercicios(eObj: exercise)));
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+              content: Text("Ejercicio: ${exercise.ejercicioNombre}")));
+        },
+      ),
+    );
+  }
+
+  Widget _buildRequiredMachineItem(Machine machine, Size media) {
+    return Container(
+      width: media.width * 0.38,
+      margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
+      decoration: BoxDecoration(
+        color: TColor.lightGray.withOpacity(0.7),
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 3,
+            offset: const Offset(0,1)
+          )
+        ]
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            flex: 2,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              child: machine.urlImagen != null && machine.urlImagen!.isNotEmpty
+                  ? Image.network(
+                      machine.urlImagen!,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return const Center(child: SizedBox(width:20, height:20, child:CircularProgressIndicator(strokeWidth: 2,)));
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          color: TColor.gray.withOpacity(0.1),
+                          alignment: Alignment.center,
+                          child: Icon(Icons.fitness_center, size: 30, color: TColor.gray.withOpacity(0.4)),
+                        );
+                      },
+                    )
+                  : Container(
+                      color: TColor.gray.withOpacity(0.1),
+                      alignment: Alignment.center,
+                      child: Icon(Icons.fitness_center, size: 30, color: TColor.gray.withOpacity(0.4)),
+                    ),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Text(
+              machine.nombre,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: TColor.black,
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+              ),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     var media = MediaQuery.of(context).size;
+    final currentRoutine = _detailedRoutine ?? widget.routine;
+
     return Container(
       decoration:
           BoxDecoration(gradient: LinearGradient(colors: TColor.primaryG)),
@@ -98,7 +179,6 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
               backgroundColor: Colors.transparent,
               centerTitle: true,
               elevation: 0,
-              // pinned: true,
               leading: InkWell(
                 onTap: () {
                   Navigator.pop(context);
@@ -109,7 +189,7 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                   width: 40,
                   alignment: Alignment.center,
                   decoration: BoxDecoration(
-                      color: TColor.lightGray,
+                      color: TColor.lightGray.withOpacity(0.8),
                       borderRadius: BorderRadius.circular(10)),
                   child: Image.asset(
                     "assets/img/black_btn.png",
@@ -120,10 +200,10 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                 ),
               ),
               title: Text(
-                "Detalle del Entrenamiento",
+                _detailedRoutine?.nombreRutina ?? "Detalle de Rutina",
                 style: TextStyle(
                     color: TColor.white,
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.w700),
               ),
               actions: [
@@ -147,20 +227,43 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                 )
               ],
             ),
-            SliverAppBar(
-              backgroundColor: Colors.transparent,
-              centerTitle: true,
-              elevation: 0,
-              leadingWidth: 0,
-              leading: Container(),
-              expandedHeight: media.width * 0.5,
-              flexibleSpace: Align(
-                alignment: Alignment.center,
-                child: Image.asset(
-                  "assets/img/detail_top.png",
-                  width: media.width * 0.75,
-                  height: media.width * 0.8,
-                  fit: BoxFit.contain,
+            SliverPersistentHeader(              
+              pinned:
+                  true,
+              delegate: _MySliverAppBarDelegate(
+                minHeight:
+                    0.0,
+                maxHeight: media.width *
+                    0.65,
+                child: ClipRRect(                  
+                  borderRadius: const BorderRadius.vertical(                    
+                    top:Radius.circular(30.0)
+                  ),
+                  child: Stack(                    
+                    fit: StackFit.expand,
+                    children: [
+                      currentRoutine.urlImagen != null &&
+                              currentRoutine.urlImagen!.isNotEmpty
+                          ? Image.network(
+                              currentRoutine.urlImagen!,
+                              fit: BoxFit
+                                  .cover,
+                              errorBuilder: (context, error, stackTrace) =>
+                                  _buildFallbackImage(media),
+                            )
+                          : _buildFallbackImage(media),
+                      //Un gradiente sutil sobre la imagen para mejorar el contraste con el AppBar
+                       Container(
+                         decoration: BoxDecoration(
+                           gradient: LinearGradient(
+                             colors: [Colors.black.withOpacity(0.3), Colors.transparent],
+                             begin: Alignment.topCenter,
+                             end: Alignment.center,
+                           ),
+                         ),
+                       ),
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -170,224 +273,256 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
           padding: const EdgeInsets.symmetric(horizontal: 15),
           decoration: BoxDecoration(
               color: TColor.white,
-              borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(25), topRight: Radius.circular(25))),
+              ),
           child: Scaffold(
             backgroundColor: Colors.transparent,
-            body: Stack(
-              children: [
-                SingleChildScrollView(
-                  child: Column(
-                    children: [
-                      const SizedBox(
-                        height: 10,
-                      ),
-                      Container(
-                        width: 50,
-                        height: 4,
-                        decoration: BoxDecoration(
-                            color: TColor.gray.withOpacity(0.3),
-                            borderRadius: BorderRadius.circular(3)),
-                      ),
-                      SizedBox(
-                        height: media.width * 0.05,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            body: _isLoading && _detailedRoutine == widget.routine
+                ? const Center(child: CircularProgressIndicator())
+                : _errorMessage != null
+                    ? Center(
+                        child: Text("Error: $_errorMessage",
+                            style: const TextStyle(color: Colors.red)))
+                    : Stack(
                         children: [
-                          Expanded(
+                          SingleChildScrollView(
+                            padding:
+                                EdgeInsets.only(bottom: media.height * 0.12),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(
-                                  widget.dObj["title"].toString(),
-                                  style: TextStyle(
-                                      color: TColor.black,
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.w700),
+                                const SizedBox(
+                                  height: 10,
                                 ),
-                                Text(
-                                  "${widget.dObj["exercises"].toString()} | ${widget.dObj["time"].toString()} | 320 Calories Burn",
-                                  style: TextStyle(
-                                      color: TColor.gray, fontSize: 12),
+                                Container(
+                                  width: 50,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                      color: TColor.gray.withOpacity(0.3),
+                                      borderRadius: BorderRadius.circular(3)),
                                 ),
-                              ],
-                            ),
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            child: Image.asset(
-                              "assets/img/fav.png",
-                              width: 15,
-                              height: 15,
-                              fit: BoxFit.contain,
-                            ),
-                          )
-                        ],
-                      ),
-                      SizedBox(
-                        height: media.width * 0.05,
-                      ),
-                      IconTitleNextRow(
-                          icon: "assets/img/time.png",
-                          title: "Programación",
-                          time: "5/27, 09:00 AM",
-                          color: TColor.primaryColor2.withOpacity(0.3),
-                          onPressed: () {
-                            //Navigator.push(context, MaterialPageRoute(builder: (context) => const WorkoutScheduleView() )  );
-                          }),
-                      SizedBox(
-                        height: media.width * 0.02,
-                      ),
-                      IconTitleNextRow(
-                          icon: "assets/img/difficulity.png",
-                          title: "Dificultad",
-                          time: "Principiante",
-                          color: TColor.secondaryColor2.withOpacity(0.3),
-                          onPressed: () {}),
-                      SizedBox(
-                        height: media.width * 0.05,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Tu necesitas",
-                            style: TextStyle(
-                                color: TColor.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700),
-                          ),
-                          TextButton(
-                            onPressed: () {},
-                            child: Text(
-                              "${youArr.length} equipos",
-                              style:
-                                  TextStyle(color: TColor.gray, fontSize: 12),
-                            ),
-                          )
-                        ],
-                      ),
-                      SizedBox(
-                        height: media.width * 0.5,
-                        child: ListView.builder(
-                            padding: EdgeInsets.zero,
-                            scrollDirection: Axis.horizontal,
-                            shrinkWrap: true,
-                            itemCount: youArr.length,
-                            itemBuilder: (context, index) {
-                              var yObj = youArr[index] as Map? ?? {};
-                              return Container(
-                                  margin: const EdgeInsets.all(8),
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                SizedBox(
+                                  height: media.width * 0.05,
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 5.0),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      Container(
-                                        height: media.width * 0.35,
-                                        width: media.width * 0.35,
-                                        decoration: BoxDecoration(
-                                            color: TColor.lightGray,
-                                            borderRadius:
-                                                BorderRadius.circular(15)),
-                                        alignment: Alignment.center,
-                                        child: Image.asset(
-                                          yObj["image"].toString(),
-                                          width: media.width * 0.2,
-                                          height: media.width * 0.2,
-                                          fit: BoxFit.contain,
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              currentRoutine.nombreRutina,
+                                              style: TextStyle(
+                                                  color: TColor.black,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w700),
+                                            ),
+                                            Text(
+                                              "${currentRoutine.nivel} | ${currentRoutine.objetivo} | ${currentRoutine.numeroDias} Día(s)",
+                                              style: TextStyle(
+                                                  color: TColor.gray,
+                                                  fontSize: 13),
+                                            ),
+                                          ],
                                         ),
                                       ),
-                                      Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Text(
-                                          yObj["title"].toString(),
-                                          style: TextStyle(
-                                              color: TColor.black,
-                                              fontSize: 12),
+                                      TextButton(
+                                        onPressed: () {},
+                                        child: Image.asset(
+                                          "assets/img/fav.png",
+                                          width: 15,
+                                          height: 15,
+                                          fit: BoxFit.contain,
                                         ),
                                       )
                                     ],
-                                  ));
-                            }),
-                      ),
-                      SizedBox(
-                        height: media.width * 0.05,
-                      ),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Exercises",
-                            style: TextStyle(
-                                color: TColor.black,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700),
+                                  ),
+                                ),
+                                SizedBox(
+                                  height: media.width * 0.05,
+                                ),
+                                if (currentRoutine.descripcion.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5.0),
+                                    child: Text(currentRoutine.descripcion,
+                                        style: TextStyle(
+                                            color: TColor.black, fontSize: 14)),
+                                  ),
+                                SizedBox(height: media.width * 0.05),
+                                if (_exercisesByDay.isNotEmpty)
+                                  ..._exercisesByDay.entries.map((dayEntry) {
+                                    int diaNumero = dayEntry.key;
+                                    List<RoutineExerciseDetail>
+                                        ejerciciosDelDia = dayEntry.value;
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Padding(
+                                          padding: const EdgeInsets.symmetric(
+                                              vertical: 10.0, horizontal: 5.0),
+                                          child: Text(
+                                            "Día $diaNumero",
+                                            style: TextStyle(
+                                                color: TColor.black,
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700),
+                                          ),
+                                        ),
+                                        ListView.builder(
+                                          padding: EdgeInsets.zero,
+                                          physics:
+                                              const NeverScrollableScrollPhysics(),
+                                          shrinkWrap: true,
+                                          itemCount: ejerciciosDelDia.length,
+                                          itemBuilder: (context, index) {
+                                            return _buildExerciseItem(
+                                                ejerciciosDelDia[index]);
+                                          },
+                                        ),
+                                        const SizedBox(height: 15),
+                                      ],
+                                    );
+                                  }).toList()
+                                else if (!_isLoading)
+                                  const Center(
+                                      child: Text(
+                                          "No hay ejercicios detallados para esta rutina.")),
+                                SizedBox(
+                                  height: media.width * 0.05,
+                                ),
+                                if (_requiredMachines.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 5.0),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        Text(
+                                          "Tú necesitas",
+                                          style: TextStyle(
+                                              color: TColor.black,
+                                              fontSize: 16,
+                                              fontWeight: FontWeight.w700),
+                                        ),
+                                       TextButton(
+                                         onPressed: () {},
+                                         child: Text(
+                                           "${_requiredMachines.length} equipos",
+                                           style: TextStyle(color: TColor.gray, fontSize: 12),
+                                         ),
+                                       )
+                                      ],
+                                    ),
+                                  ),
+                                if (_requiredMachines.isNotEmpty)
+                                  SizedBox(
+                                    height: media.width * 0.45, // Altura para la lista horizontal de máquinas
+                                    child: ListView.builder(
+                                        padding: const EdgeInsets.only(left: 5, top: 5, bottom: 5), // Añadir padding izquierdo para la primera tarjeta
+                                        scrollDirection: Axis.horizontal,
+                                        itemCount: _requiredMachines.length,
+                                        itemBuilder: (context, index) {
+                                          return _buildRequiredMachineItem(_requiredMachines[index], media);
+                                        }),
+                                ),
+                                if (_requiredMachines.isEmpty && !_isLoading)
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 5.0),
+                                    child: Text(
+                                      "No se especificó equipamiento para esta rutina.",
+                                      style: TextStyle(color: TColor.gray, fontSize: 13),
+                                    ),
+                                ),
+                                
+                                SizedBox(
+                                  height: media.width * 0.05,
+                                )
+                              ],
+                            ),
                           ),
-                          TextButton(
-                            onPressed: () {},
-                            child: Text(
-                              "${youArr.length} Sets",
-                              style:
-                                  TextStyle(color: TColor.gray, fontSize: 12),
+                          Align(
+                            alignment: Alignment.bottomCenter,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 15, vertical: 15),
+                              color: TColor
+                                  .white, // Fondo para que no se transparente
+                              child: RoundButton(
+                                title: "Programar Rutina en Calendario",
+                                onPressed: () {
+                                  // Navegar a AgregarReservaView, pasando la información de la rutina
+                                  // Necesitarás adaptar AgregarReservaView o crear una nueva para
+                                  // programar una rutina completa o sus días.
+                                  //Navigator.push(
+                                  //   context,
+                                  //   MaterialPageRoute(
+                                  //     builder: (context) => AgregarReservaView(
+                                  //       date: DateTime
+                                  //           .now(), // Fecha inicial para el calendario
+                                  //       // Podrías pasar el objeto rutina para pre-llenar info
+                                  //       // initialRoutine: _detailedRoutine,
+                                  //     ),
+                                  //   ),
+                                  // );
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                          content: Text(
+                                              "Funcionalidad de programar no implementada completamente.")));
+                                },
+                              ),
                             ),
                           )
                         ],
                       ),
-                      ListView.builder(
-                          padding: EdgeInsets.zero,
-                          physics: const NeverScrollableScrollPhysics(),
-                          shrinkWrap: true,
-                          itemCount: exercisesArr.length,
-                          itemBuilder: (context, index) {
-                            var sObj = exercisesArr[index] as Map? ?? {};
-                            return ExercisesSetSection(
-                              sObj: sObj,
-                              onPressed: (obj) {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => PasosEjercicios(
-                                      eObj: obj,
-                                    ),
-                                  ),
-                                );
-                              },
-                            );
-                          }),
-                      SizedBox(
-                        height: media.width * 0.1,
-                      ),
-                    ],
-                  ),
-                ),
-                SafeArea(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.max,
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      RoundButton(
-                          title: "Agendar",
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const EstoyListoQRView(
-                                  machineName: 'Press de Pierna',
-                                  machineImageAsset:
-                                      'assets/img/maquina_abdominales_inclinada.png',
-                                ),
-                              ),
-                            );
-                          })
-                    ],
-                  ),
-                )
-              ],
-            ),
           ),
         ),
       ),
     );
+  }
+  
+}
+
+Widget _buildFallbackImage(Size media) {
+    return Image.asset(
+      "assets/img/detail_top.png",
+      width: media.width,
+      fit: BoxFit.cover,
+    );
+}
+
+class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  _MySliverAppBarDelegate({
+    required this.minHeight,
+    required this.maxHeight,
+    required this.child,
+  });
+
+  final double minHeight;
+  final double maxHeight;
+  final Widget child;
+
+  @override
+  double get minExtent => minHeight;
+
+  @override
+  double get maxExtent => maxHeight;
+
+  @override
+  Widget build(
+      BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return SizedBox.expand(child: child);
+  }
+
+  @override
+  bool shouldRebuild(_MySliverAppBarDelegate oldDelegate) {
+    return maxHeight != oldDelegate.maxHeight ||
+        minHeight != oldDelegate.minHeight ||
+        child != oldDelegate.child;
   }
 }
