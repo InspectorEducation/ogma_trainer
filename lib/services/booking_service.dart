@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:intl/intl.dart'; // Para formatear la fecha para la API
+import 'package:intl/intl.dart';
 import 'package:ogma_trainer/config/app_config.dart';
 import 'package:ogma_trainer/models/availability_check_response_model.dart';
 import 'package:ogma_trainer/models/booking_day_response_model.dart';
 import 'package:ogma_trainer/services/storage_service.dart';
-import 'package:ogma_trainer/models/booking_model.dart'; // Crearemos este modelo
+import 'package:ogma_trainer/models/booking_model.dart';
+import 'package:ogma_trainer/models/routine_model.dart';
 
 class BookingService {
   final StorageService _storageService = StorageService();
@@ -73,6 +74,35 @@ class BookingService {
     } catch (e) {
       debugPrint("Excepción en getBookingsForDay: $e");
       return [];
+    }
+  }
+
+   Future<RoutineExerciseDetail> getBookedExerciseDetails(int idReservaMaquina) async {    
+    final Uri url = Uri.parse(AppConfig.getBookingServiceUrl("/Bookings/machine-reservations/$idReservaMaquina/routine-day-exercise"));
+    final token = await _storageService.getToken();
+
+    if (token == null) {
+      throw Exception("Usuario no autenticado.");
+    }
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer $token",          
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return RoutineExerciseDetail.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      } else {
+        debugPrint("Error al obtener detalles del ejercicio de la reserva $idReservaMaquina (${response.statusCode}): ${response.body}");
+        throw Exception("Error al obtener detalles del ejercicio de la reserva: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Excepción al obtener detalles del ejercicio de la reserva $idReservaMaquina: $e");
+      throw Exception("Excepción al obtener detalles del ejercicio de la reserva: $e");
     }
   }
 

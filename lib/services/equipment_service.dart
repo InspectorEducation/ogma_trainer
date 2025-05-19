@@ -68,4 +68,29 @@ class EquipmentService {
       throw Exception("Excepción al obtener clases: $e");
     }
   }
+
+  Future<Machine> getMachineDetails(int machineId) async {    
+    final Uri url = Uri.parse(AppConfig.getEquipmentRutineService("/Equipment/machines/$machineId"));
+    final token = await _storageService.getToken();
+
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          if (token != null) "Authorization": "Bearer $token",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        return Machine.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+      } else {
+        debugPrint("Error al obtener detalles de la máquina $machineId (${response.statusCode}): ${response.body}");
+        throw Exception("Error al obtener detalles de la máquina: ${response.statusCode}");
+      }
+    } catch (e) {
+      debugPrint("Excepción al obtener detalles de la máquina $machineId: $e");
+      throw Exception("Excepción al obtener detalles de la máquina: $e");
+    }
+  }
 }

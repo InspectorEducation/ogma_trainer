@@ -6,6 +6,7 @@ import 'package:ogma_trainer/common/common.dart';
 import 'package:ogma_trainer/models/booking_model.dart';
 import 'package:ogma_trainer/services/booking_service.dart';
 import 'package:ogma_trainer/services/storage_service.dart';
+import 'package:ogma_trainer/view/paso_a_paso/estoy_listo_qr_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/agregar_reserva_view.dart';
 
 class CalendarioEntrenamientoView extends StatefulWidget {
@@ -496,8 +497,8 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(),
-              child: Text("Cerrar", style: TextStyle(color: TColor.gray)),
+              onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (context) => EstoyListoQRView(booking: booking,))),
+              child: Text("Iniciar Ahora", style: TextStyle(color: TColor.primaryColor1)),
             ),
             // Botón para cancelar la reserva
             // Solo mostrar si el estado de la reserva lo permite (ej. "Confirmada")
