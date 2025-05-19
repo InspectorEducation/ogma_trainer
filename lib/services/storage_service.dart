@@ -62,4 +62,11 @@ class StorageService {
     await clearCheckInData();
   }
   
+  Future<String?> getAppId() async {    
+    return await _secureStorage.read(key: AppConfig.appId);
+  }
+
+  Future<String?> getAppSign() async {
+    return await _secureStorage.read(key: AppConfig.appSign);
+  }
 }

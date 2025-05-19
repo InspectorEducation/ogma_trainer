@@ -15,7 +15,8 @@ class AppConfig {
   static const String jwtTokenKey = "jwt_token";
   static const String userIdKey = "user_id";
   static const String userEmailKey = "user_email";
-  // ... otras claves que quieras guardar
+  static const String appId = "1383300406";
+  static const String appSign = "6926969e641294afad2b7e46200b140357f3ebaca35c961ff927218ef91a5787";
 
   // --- Métodos de utilidad para construir URLs completas ---
   static String getUserManagementUrl(String endpoint) {
@@ -32,5 +33,13 @@ class AppConfig {
 
   static String getEquipmentRutineService(String endpoint) {
     return "$equipmentRutineServiceBaseUrl$equipmentServiceBasePath$endpoint";
+  }
+
+  static int getAppId() {
+    return int.parse(appId);
+  }
+
+  static String getAppSign() {
+    return appSign;
   }
 }

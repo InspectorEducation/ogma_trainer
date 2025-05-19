@@ -13,6 +13,7 @@ class RoundButton extends StatelessWidget {
   final String? icon; // Ruta del asset para el icono (opcional)
   final Color? iconColor; // Color del icono (opcional, por defecto blanco o según el tipo)
   final double iconSize; // Tamaño del icono (opcional)
+  final EdgeInsetsGeometry? padding;
 
   const RoundButton({
     super.key,
@@ -24,7 +25,8 @@ class RoundButton extends StatelessWidget {
     this.fontWeight = FontWeight.w700,
     this.icon,
     this.iconColor,
-    this.iconSize = 20.0, // Tamaño por defecto para el icono
+    this.iconSize = 20.0,
+    this.padding // Tamaño por defecto para el icono
   });
 
   @override
@@ -68,7 +70,7 @@ class RoundButton extends StatelessWidget {
         color: type == RoundButtonType.bgGradient || type == RoundButtonType.bgSGradient
             ? Colors.transparent // El gradiente del Container se ve a través
             : TColor.white,
-        padding: EdgeInsets.zero, // Para controlar el padding con el Row interno
+        padding: padding ?? const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Row( // Usar Row para acomodar icono y texto
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min, // Para que el Row no ocupe más de lo necesario si el botón no es double.maxFinite

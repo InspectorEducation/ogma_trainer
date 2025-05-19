@@ -1,0 +1,5 @@
+-keep class **.zego.** { *; }
+-keep class com.itgsa.opensdk.** { *; }
+-keep class java.beans.** { *; }
+-keep class org.conscrypt.** { *; }
+-keep class org.w3c.dom.bootstrap.** { *; }

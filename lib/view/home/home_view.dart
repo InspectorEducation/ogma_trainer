@@ -1,16 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
+import 'package:ogma_trainer/common_widget/live_class_row.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/siguiente_entrenamiento_row.dart';
 import 'package:ogma_trainer/common_widget/what_train_row.dart';
 import 'package:ogma_trainer/services/capacity_service.dart';
+import 'package:ogma_trainer/services/equipment_service.dart';
 import 'package:ogma_trainer/services/storage_service.dart';
 import 'package:ogma_trainer/view/formularios/formulario_sintomas_view.dart';
 import 'package:ogma_trainer/view/login/login_view.dart';
 import 'package:ogma_trainer/view/paso_a_paso/leer_codigo_qr_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/detalle_entranamiento_view.dart';
+import 'package:ogma_trainer/view/tele_entrenamiento/call_page.dart';
 import 'package:simple_animation_progress_bar/simple_animation_progress_bar.dart';
 import 'package:ogma_trainer/services/auth_service.dart';
+import 'package:ogma_trainer/models/clase_info_model.dart';
 
 class HomeView extends StatefulWidget {
   const HomeView({super.key});
@@ -23,11 +27,16 @@ class _HomeViewState extends State<HomeView> {
   final AuthService _authService = AuthService();
   final CapacityService _capacityService = CapacityService();
   final StorageService _storageService = StorageService();
+  final EquipmentService _equipmentService = EquipmentService();
 
   bool _isLoadingCheckInStatus = true;
   String? _currentCheckInId;
   String? _checkedInGymId;
   int? _currentUserId;
+
+  List<ClaseInfo> _liveClasses = [];
+  bool _isLoadingLiveClasses = true;
+  String? _errorLoadingLiveClasses;
 
   List ids_availables_gyms_for_user = [1, 2, 3];
 
@@ -92,9 +101,16 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<void> _loadInitialData() async {
-    await _loadCheckInStatus();
-    await _getCurrentUserId(); // Obtener ID de usuario
-    // bool workoutNow = await _checkIfWorkoutIsSoon(); // Ejemplo
+    setState(() {
+      _isLoadingCheckInStatus = true;      
+    });
+
+    Future<void> checkInFuture = _loadCheckInStatus();
+    Future<void> userIdFuture = _getCurrentUserId();
+    Future<void> liveClassesFuture = _loadLiveClasses(); 
+
+    await Future.wait([checkInFuture, userIdFuture, liveClassesFuture]);
+
     if (workoutNow && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) _showWorkoutAlert(context);
@@ -118,6 +134,45 @@ class _HomeViewState extends State<HomeView> {
     _currentCheckInId = await _storageService.getCheckInId();
     _checkedInGymId = await _storageService.getCheckedInGymId();
     debugPrint("CheckInId EN SISTEMA: $_currentCheckInId");
+  }
+
+  Future<void> _loadLiveClasses() async {
+    if (!mounted) return;
+    setState(() {
+      _isLoadingLiveClasses = true;
+      _errorLoadingLiveClasses = null;
+    });
+
+    try {
+      final allClasses = await _equipmentService.getAllClasses();
+      final now = DateTime.now();
+      // Filtrar clases activas y futuras (o de hoy)
+      _liveClasses = allClasses.where((clase) {
+        // Comparar solo la parte de la fecha para "hoy"
+        DateTime claseStartDate = DateTime(clase.fechaHoraInicio.year,
+            clase.fechaHoraInicio.month, clase.fechaHoraInicio.day);
+        DateTime todayDate = DateTime(now.year, now.month, now.day);
+        return clase.activa &&
+            (claseStartDate.isAtSameMomentAs(todayDate) ||
+                clase.fechaHoraInicio.isAfter(now));
+      }).toList();
+
+      //Ordenar por fecha de inicio más próxima
+      _liveClasses
+          .sort((a, b) => a.fechaHoraInicio.compareTo(b.fechaHoraInicio));
+    } catch (e) {
+      if (mounted) {
+        _errorLoadingLiveClasses =
+            "Error al cargar clases: ${e.toString().substring(0, (e.toString().length > 100 ? 100 : e.toString().length))}"; // Acortar mensaje
+      }
+      debugPrint("Error en _loadLiveClasses: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingLiveClasses = false;
+        });
+      }
+    }
   }
 
   void _showWorkoutAlert(BuildContext context) {
@@ -205,40 +260,43 @@ class _HomeViewState extends State<HomeView> {
       final Map<String, dynamic>? data =
           result["data"] as Map<String, dynamic>?;
       final int? checkInIdFromData = data?["checkInId"] as int?;
-      final bool requiresSymptomForm = data?["requiresSymptomForm"] as bool? ?? false;
+      final bool requiresSymptomForm =
+          data?["requiresSymptomForm"] as bool? ?? false;
 
       if (checkInIdFromData != null) {
-        final String checkInIdStr = checkInIdFromData.toString();        
+        final String checkInIdStr = checkInIdFromData.toString();
         final String gymIdStr =
             (data?["gymId"] as int? ?? gymIdFromQR).toString();
 
         await _storageService.saveCheckInData(
             checkInId: checkInIdStr, gymId: gymIdStr);
-                    
+
         if (mounted) {
           setState(() {
             _currentCheckInId = checkInIdStr;
             _checkedInGymId = gymIdStr;
-          });          
+          });
         }
-        if (Navigator.canPop(context))
-            Navigator.pop(context);
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-                content: Text(result["message"] ?? "Ingreso exitoso!"),
-                backgroundColor: Colors.green),
+        if (Navigator.canPop(context)) Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text(result["message"] ?? "Ingreso exitoso!"),
+              backgroundColor: Colors.green),
         );
 
         //si validacion de sintomas esta prendido
-        if (requiresSymptomForm) {          
-           if (mounted) {
-               Navigator.pushReplacement(
-                 context,
-                 MaterialPageRoute(
-                   builder: (context) => FormularioSintomasView(checkInId: checkInIdFromData, userId: _currentUserId!, questions: questionsSym),
-                 ),
-               );
-           }
+        if (requiresSymptomForm) {
+          if (mounted) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => FormularioSintomasView(
+                    checkInId: checkInIdFromData,
+                    userId: _currentUserId!,
+                    questions: questionsSym),
+              ),
+            );
+          }
         }
       } else {
         debugPrint(
@@ -599,6 +657,99 @@ class _HomeViewState extends State<HomeView> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
+                    "Próximas Clases en Vivo",
+                    style: TextStyle(
+                        color: TColor.black,
+                        fontSize: 20, // Consistente con otros títulos
+                        fontWeight: FontWeight.w700),
+                  ),                  
+                  TextButton(
+                    onPressed: () {/* Navegar a vista de todas las clases */},
+                    child: Text("Ver Todas",
+                        style: TextStyle(
+                            color: TColor.gray,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700)),
+                  )
+                ],
+              ),
+              SizedBox(height: media.width * 0.01),
+              _isLoadingLiveClasses
+                  ? const Center(
+                      child: Padding(
+                          padding: EdgeInsets.all(16.0),
+                          child: CircularProgressIndicator()))
+                  : _errorLoadingLiveClasses != null
+                      ? Center(
+                          child: Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: Text(_errorLoadingLiveClasses!,
+                                  style: const TextStyle(color: Colors.red))))
+                      : _liveClasses.isEmpty
+                          ? Center(
+                              child: Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Text(
+                                      "No hay clases en vivo programadas.",
+                                      style: TextStyle(color: TColor.gray))))
+                          : ListView.builder(
+                              padding: EdgeInsets.zero,
+                              physics: const NeverScrollableScrollPhysics(),
+                              shrinkWrap: true,
+                              itemCount: _liveClasses.length > 3
+                                  ? 3
+                                  : _liveClasses
+                                      .length, // Mostrar solo las primeras 3 o menos
+                              itemBuilder: (context, index) {
+                                final clase = _liveClasses[index];
+                                return LiveClassRow(
+                                  clase: clase,
+                                  onJoinNow: () {
+                                    // Lógica para unirse a la clase:
+                                    // 1. Verificar si el usuario ya está inscrito.
+                                    // 2. Si no, llamar al servicio de inscripción (POST /api/Bookings/classes/{classId}/register).
+                                    // 3. Si la inscripción es exitosa (o ya estaba inscrito),
+                                    //    navegar a la vista de la clase en vivo (usando clase.urlClaseVideo si es un link directo
+                                    //    o a una pantalla intermedia que maneje la conexión a la plataforma de streaming).
+
+                                    // Ejemplo simple de inscripción (necesitarás adaptar esto con tu servicio real)
+                                    if (_currentUserId != null && clase.urlClase != null) {                                    
+                                      Navigator.push(context, MaterialPageRoute(builder: (context) => CallPage(callID: clase.urlClase!, userId: _currentUserId.toString(), userName: "Anonimo")));
+                                      // Ejemplo de llamada al servicio (debes tenerlo en BookingService o similar)
+                                      /*
+                                      _bookingService.registerForClass(classId: clase.idClase, userId: _currentUserId!).then((result) {
+                                        if (result["success"] == true) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text("¡Inscrito! Abriendo clase..."), backgroundColor: Colors.green)
+                                          );
+                                          // TODO: Abrir clase.urlClaseVideo o navegar a la vista de streaming
+                                          if (clase.urlClaseVideo != null && clase.urlClaseVideo!.isNotEmpty) {
+                                            // launchUrl(Uri.parse(clase.urlClaseVideo!)); // Necesitas package url_launcher
+                                          } else {
+                                            // Navegar a una pantalla de clase sin video directo
+                                          }
+                                        } else {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            SnackBar(content: Text(result["message"] ?? "Error al unirse."), backgroundColor: Colors.red)
+                                          );
+                                        }
+                                      });
+                                      */
+                                    } else {
+                                      ScaffoldMessenger.of(context)
+                                          .showSnackBar(const SnackBar(
+                                              content: Text(
+                                                  "Por favor, inicia sesión para unirte.")));
+                                    }
+                                  },
+                                );
+                              },
+                            ),
+              // --- FIN SECCIÓN PRÓXIMAS CLASES EN VIVO ---
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
                     "Proximo entrenamiento",
                     style: TextStyle(
                         color: TColor.black,
@@ -688,14 +839,54 @@ class _HomeViewState extends State<HomeView> {
                   )
                 ],
               ),
-              
               SizedBox(
                 height: media.width * 0.1,
               ),
+              
             ],
           ),
         )),
       ),
     );
   }
+
+  Widget _buildLiveClassesSection() {
+    if (_isLoadingLiveClasses) {
+      return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+    }
+    if (_errorLoadingLiveClasses != null) {
+      return Center(child: Padding(padding: const EdgeInsets.all(16.0),child: Text(_errorLoadingLiveClasses!, style: const TextStyle(color: Colors.red))));
+    }
+    if (_liveClasses.isEmpty) {
+      return Center(child: Padding(padding: const EdgeInsets.all(16.0),child: Text("No hay clases en vivo programadas.", style: TextStyle(color: TColor.gray))));
+    }
+    final clasex = _liveClasses[0];
+    String? id_clase = clasex.urlClase;
+    debugPrint("URL DE CLASE: $id_clase");
+    return ListView.builder(
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      shrinkWrap: true,
+      // Mostrar un máximo de, por ejemplo, 3-5 clases en el home
+      itemCount: _liveClasses.length > 3 ? 3 : _liveClasses.length,
+      itemBuilder: (context, index) {
+        final clase = _liveClasses[index];
+        String? id_clase = clase.urlClase;
+        debugPrint("URL DE CLASE: $id_clase");
+        return LiveClassRow(
+          clase: clase,
+          onJoinNow: () {            
+             if (_currentUserId != null && clase.urlClase != null) {                                    
+                Navigator.push(context, MaterialPageRoute(builder: (context) => CallPage(callID: clase.urlClase!, userId: _currentUserId.toString(), userName: "Anonimo")));
+            } else {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text("Por favor, inicia sesión para unirte."))
+              );
+            }
+          },
+        );
+      },
+    );
+  }
+  // --- FIN WIDGET HELPER ---
 }
