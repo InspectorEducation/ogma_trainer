@@ -8,6 +8,7 @@ import 'package:ogma_trainer/models/routine_model.dart';
 import 'package:ogma_trainer/services/routine_service.dart';
 import 'package:ogma_trainer/view/paso_a_paso/estoy_listo_qr_view.dart';
 import 'package:ogma_trainer/view/seguimiento_entrenamiento/pasos_ejercicios.dart';
+import 'package:ogma_trainer/view/seguimiento_entrenamiento/programar_rutina_view.dart';
 
 class DetalleEntranamientoView extends StatefulWidget {
   final Routine routine;
@@ -28,7 +29,7 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
   // Lista para agrupar ejercicios por día
   Map<int, List<RoutineExerciseDetail>> _exercisesByDay = {};
 
-  List<Machine> _requiredMachines = [];  
+  List<Machine> _requiredMachines = [];
 
   @override
   void initState() {
@@ -43,15 +44,16 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
       _errorMessage = null;
       _requiredMachines = [];
     });
-    try {      
-      final routineDetails = await _routineService.getRoutineDetails(widget.routine.idRutina);
+    try {
+      final routineDetails =
+          await _routineService.getRoutineDetails(widget.routine.idRutina);
       _detailedRoutine = routineDetails;
       _groupExercisesByDay();
-      
-      if (_detailedRoutine != null) {
-        _requiredMachines = await _routineService.getRequiredMachinesForRoutine(_detailedRoutine!.idRutina);
-      }
 
+      if (_detailedRoutine != null) {
+        _requiredMachines = await _routineService
+            .getRequiredMachinesForRoutine(_detailedRoutine!.idRutina);
+      }
     } catch (e) {
       _errorMessage = e.toString();
     } finally {
@@ -82,7 +84,9 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
       elevation: 1.0,
       child: ListTile(
         //leading: Image.asset("assets/img/img_1.png",width: 40, height: 40), // Necesitarías imágenes para ejercicios
-        leading: CircleAvatar(backgroundColor: TColor.lightGray, child: Text(exercise.ordenEnDia.toString())),
+        leading: CircleAvatar(
+            backgroundColor: TColor.lightGray,
+            child: Text(exercise.ordenEnDia.toString())),
         title: Text(exercise.ejercicioNombre,
             style: TextStyle(fontWeight: FontWeight.w500, color: TColor.black)),
         subtitle: Text(
@@ -91,10 +95,16 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () {
-          // TODO: Navegar a una vista de detalle del ejercicio si la tienes
-          // Navigator.push(context, MaterialPageRoute(builder: (context) => PasosEjercicios(eObj: exercise)));
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-              content: Text("Ejercicio: ${exercise.ejercicioNombre}")));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => PasosEjercicios(
+                exerciseId: exercise.idEjercicio,
+                initialExerciseName: exercise
+                    .ejercicioNombre,
+              ),
+            ),
+          );
         },
       ),
     );
@@ -105,43 +115,50 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
       width: media.width * 0.38,
       margin: const EdgeInsets.only(right: 12, top: 8, bottom: 8),
       decoration: BoxDecoration(
-        color: TColor.lightGray.withOpacity(0.7),
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 3,
-            offset: const Offset(0,1)
-          )
-        ]
-      ),
+          color: TColor.lightGray.withOpacity(0.7),
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withOpacity(0.05),
+                blurRadius: 3,
+                offset: const Offset(0, 1))
+          ]),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Expanded(
             flex: 2,
             child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
               child: machine.urlImagen != null && machine.urlImagen!.isNotEmpty
                   ? Image.network(
                       machine.urlImagen!,
                       fit: BoxFit.cover,
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
-                        return const Center(child: SizedBox(width:20, height:20, child:CircularProgressIndicator(strokeWidth: 2,)));
+                        return const Center(
+                            child: SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                )));
                       },
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
                           color: TColor.gray.withOpacity(0.1),
                           alignment: Alignment.center,
-                          child: Icon(Icons.fitness_center, size: 30, color: TColor.gray.withOpacity(0.4)),
+                          child: Icon(Icons.fitness_center,
+                              size: 30, color: TColor.gray.withOpacity(0.4)),
                         );
                       },
                     )
                   : Container(
                       color: TColor.gray.withOpacity(0.1),
                       alignment: Alignment.center,
-                      child: Icon(Icons.fitness_center, size: 30, color: TColor.gray.withOpacity(0.4)),
+                      child: Icon(Icons.fitness_center,
+                          size: 30, color: TColor.gray.withOpacity(0.4)),
                     ),
             ),
           ),
@@ -227,41 +244,39 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                 )
               ],
             ),
-            SliverPersistentHeader(              
-              pinned:
-                  true,
+            SliverPersistentHeader(
+              pinned: true,
               delegate: _MySliverAppBarDelegate(
-                minHeight:
-                    0.0,
-                maxHeight: media.width *
-                    0.65,
-                child: ClipRRect(                  
-                  borderRadius: const BorderRadius.vertical(                    
-                    top:Radius.circular(30.0)
-                  ),
-                  child: Stack(                    
+                minHeight: 0.0,
+                maxHeight: media.width * 0.65,
+                child: ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(30.0)),
+                  child: Stack(
                     fit: StackFit.expand,
                     children: [
                       currentRoutine.urlImagen != null &&
                               currentRoutine.urlImagen!.isNotEmpty
                           ? Image.network(
                               currentRoutine.urlImagen!,
-                              fit: BoxFit
-                                  .cover,
+                              fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) =>
                                   _buildFallbackImage(media),
                             )
                           : _buildFallbackImage(media),
                       //Un gradiente sutil sobre la imagen para mejorar el contraste con el AppBar
-                       Container(
-                         decoration: BoxDecoration(
-                           gradient: LinearGradient(
-                             colors: [Colors.black.withOpacity(0.3), Colors.transparent],
-                             begin: Alignment.topCenter,
-                             end: Alignment.center,
-                           ),
-                         ),
-                       ),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [
+                              Colors.black.withOpacity(0.3),
+                              Colors.transparent
+                            ],
+                            begin: Alignment.topCenter,
+                            end: Alignment.center,
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -272,8 +287,8 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
         body: Container(
           padding: const EdgeInsets.symmetric(horizontal: 15),
           decoration: BoxDecoration(
-              color: TColor.white,
-              ),
+            color: TColor.white,
+          ),
           child: Scaffold(
             backgroundColor: Colors.transparent,
             body: _isLoading && _detailedRoutine == widget.routine
@@ -399,9 +414,11 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                                 ),
                                 if (_requiredMachines.isNotEmpty)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 5.0),
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5.0),
                                     child: Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
                                       children: [
                                         Text(
                                           "Tú necesitas",
@@ -410,36 +427,45 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                                               fontSize: 16,
                                               fontWeight: FontWeight.w700),
                                         ),
-                                       TextButton(
-                                         onPressed: () {},
-                                         child: Text(
-                                           "${_requiredMachines.length} equipos",
-                                           style: TextStyle(color: TColor.gray, fontSize: 12),
-                                         ),
-                                       )
+                                        TextButton(
+                                          onPressed: () {},
+                                          child: Text(
+                                            "${_requiredMachines.length} equipos",
+                                            style: TextStyle(
+                                                color: TColor.gray,
+                                                fontSize: 12),
+                                          ),
+                                        )
                                       ],
                                     ),
                                   ),
                                 if (_requiredMachines.isNotEmpty)
                                   SizedBox(
-                                    height: media.width * 0.45, // Altura para la lista horizontal de máquinas
+                                    height: media.width *
+                                        0.45, // Altura para la lista horizontal de máquinas
                                     child: ListView.builder(
-                                        padding: const EdgeInsets.only(left: 5, top: 5, bottom: 5), // Añadir padding izquierdo para la primera tarjeta
+                                        padding: const EdgeInsets.only(
+                                            left: 5,
+                                            top: 5,
+                                            bottom:
+                                                5), // Añadir padding izquierdo para la primera tarjeta
                                         scrollDirection: Axis.horizontal,
                                         itemCount: _requiredMachines.length,
                                         itemBuilder: (context, index) {
-                                          return _buildRequiredMachineItem(_requiredMachines[index], media);
+                                          return _buildRequiredMachineItem(
+                                              _requiredMachines[index], media);
                                         }),
-                                ),
+                                  ),
                                 if (_requiredMachines.isEmpty && !_isLoading)
                                   Padding(
-                                    padding: const EdgeInsets.symmetric(vertical: 10.0, horizontal: 5.0),
+                                    padding: const EdgeInsets.symmetric(
+                                        vertical: 10.0, horizontal: 5.0),
                                     child: Text(
                                       "No se especificó equipamiento para esta rutina.",
-                                      style: TextStyle(color: TColor.gray, fontSize: 13),
+                                      style: TextStyle(
+                                          color: TColor.gray, fontSize: 13),
                                     ),
-                                ),
-                                
+                                  ),
                                 SizedBox(
                                   height: media.width * 0.05,
                                 )
@@ -456,24 +482,13 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
                               child: RoundButton(
                                 title: "Programar Rutina en Calendario",
                                 onPressed: () {
-                                  // Navegar a AgregarReservaView, pasando la información de la rutina
-                                  // Necesitarás adaptar AgregarReservaView o crear una nueva para
-                                  // programar una rutina completa o sus días.
-                                  //Navigator.push(
-                                  //   context,
-                                  //   MaterialPageRoute(
-                                  //     builder: (context) => AgregarReservaView(
-                                  //       date: DateTime
-                                  //           .now(), // Fecha inicial para el calendario
-                                  //       // Podrías pasar el objeto rutina para pre-llenar info
-                                  //       // initialRoutine: _detailedRoutine,
-                                  //     ),
-                                  //   ),
-                                  // );
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                          content: Text(
-                                              "Funcionalidad de programar no implementada completamente.")));
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                        builder: (context) =>
+                                            ProgramarRutinaView(
+                                                routine: widget.routine)),
+                                  );
                                 },
                               ),
                             ),
@@ -485,15 +500,14 @@ class _DetalleEntranamientoViewState extends State<DetalleEntranamientoView> {
       ),
     );
   }
-  
 }
 
 Widget _buildFallbackImage(Size media) {
-    return Image.asset(
-      "assets/img/detail_top.png",
-      width: media.width,
-      fit: BoxFit.cover,
-    );
+  return Image.asset(
+    "assets/img/detail_top.png",
+    width: media.width,
+    fit: BoxFit.cover,
+  );
 }
 
 class _MySliverAppBarDelegate extends SliverPersistentHeaderDelegate {

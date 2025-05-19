@@ -19,6 +19,7 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
   final CalendarAgendaController _calendarAgendaControllerAppBar = CalendarAgendaController();
   final BookingService _bookingService = BookingService();
   final StorageService _storageService = StorageService();
+  final CalendarAgendaController _calendarAgendaController = CalendarAgendaController();
     
   late DateTime _selectedDate;
   String? _currentUserId;
@@ -276,7 +277,7 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
                   height: 15,
                 )),
             weekDay: WeekDay.short,
-            locale: 'es',
+            locale: 'es_ES',
             dayNameFontSize: 12,
             dayNumberFontSize: 16,
             dayBGColor: Colors.grey.withOpacity(0.15),
@@ -324,12 +325,13 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
                                 child: ListView.separated(
                                     shrinkWrap: true, // Importante para ListView dentro de otro scrollable
                                     physics: const NeverScrollableScrollPhysics(), // Deshabilitar scroll del ListView
-                                    itemBuilder: (context, hourIndex) { // Itera sobre las horas del día
-                                      // Encuentra las reservas para esta hora específica
+                                    itemBuilder: (context, hourIndex) { 
+                                      
                                       List<Booking> bookingsInThisHour = _bookingsForSelectedDay
-                                          .where((booking) => booking.startHour == hourIndex)
+                                          .where((booking) {                                            
+                                            return booking.startTime.toLocal().hour == hourIndex;
+                                          })
                                           .toList();
-                                      // Ordenar por minuto de inicio
                                       bookingsInThisHour.sort((a, b) => a.startMinute.compareTo(b.startMinute));
                           
                                       return Container(
@@ -398,7 +400,7 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
                                                           const SizedBox(width: 4),
                                                           Expanded(
                                                             child: Text(
-                                                              "${booking.itemName} (${DateFormat('HH:mm').format(booking.startTime)})",
+                                                              "${booking.itemName} (${DateFormat('HH:mm', 'es_ES').format(booking.startTime.toLocal())})",
                                                               maxLines: 2, // Permitir dos líneas
                                                               overflow: TextOverflow.ellipsis,
                                                               style: TextStyle(color: TColor.white, fontSize: 11),
@@ -484,9 +486,9 @@ class _CalendarioEntrenamientoViewState extends State<CalendarioEntrenamientoVie
                 style: TextStyle(color: TColor.black, fontSize: 18, fontWeight: FontWeight.w600),
               ),
               const SizedBox(height: 10),
-              _buildDetailRow(Icons.calendar_today, "Fecha:", DateFormat('dd/MM/yyyy').format(booking.startTime)),
-              _buildDetailRow(Icons.access_time, "Inicio:", DateFormat('HH:mm').format(booking.startTime)),
-              _buildDetailRow(Icons.access_time_filled, "Fin:", DateFormat('HH:mm').format(booking.endTime)),
+              _buildDetailRow(Icons.calendar_today, "Fecha:", DateFormat('dd/MM/yyyy', 'es_ES').format(booking.startTime.toLocal())),
+              _buildDetailRow(Icons.access_time, "Inicio:", DateFormat('HH:mm', 'es_ES').format(booking.startTime.toLocal())),
+              _buildDetailRow(Icons.access_time_filled, "Fin:", DateFormat('HH:mm', 'es_ES').format(booking.endTime.toLocal())),
               _buildDetailRow(Icons.info_outline, "Estado:", booking.status),
               if (booking.attended != null)
                  _buildDetailRow(booking.attended! ? Icons.check_circle : Icons.cancel, "Asistió:", booking.attended! ? "Sí" : "No"),

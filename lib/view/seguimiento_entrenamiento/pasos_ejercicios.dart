@@ -3,43 +3,57 @@ import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/step_detail_row.dart';
+import 'package:ogma_trainer/models/exercise_detail_model.dart';
+import 'package:ogma_trainer/services/exercise_service.dart';
 import 'package:readmore/readmore.dart';
 
 class PasosEjercicios extends StatefulWidget {
-  final Map eObj;
-  const PasosEjercicios({super.key, required this.eObj});
+  final int exerciseId;
+  final String initialExerciseName;
+
+  const PasosEjercicios(
+      {super.key, required this.exerciseId, required this.initialExerciseName});
 
   @override
-  State<PasosEjercicios> createState() => _PasosEjerciciosState();
+  State<PasosEjercicios> createState() => _PasosEjerciciosViewState();
 }
 
-class _PasosEjerciciosState extends State<PasosEjercicios> {
-  List stepArr = [
-    {
-      "no": "01",
-      "title": "Spread Your Arms",
-      "detail":
-          "To make the gestures feel more relaxed, stretch your arms as you start this movement. No bending of hands."
-    },
-    {
-      "no": "02",
-      "title": "Rest at The Toe",
-      "detail":
-          "The basis of this movement is jumping. Now, what needs to be considered is that you have to use the tips of your feet"
-    },
-    {
-      "no": "03",
-      "title": "Adjust Foot Movement",
-      "detail":
-          "Jumping Jack is not just an ordinary jump. But, you also have to pay close attention to leg movements."
-    },
-    {
-      "no": "04",
-      "title": "Clapping Both Hands",
-      "detail":
-          "This cannot be taken lightly. You see, without realizing it, the clapping of your hands helps you to keep your rhythm while doing the Jumping Jack"
-    },
-  ];
+class _PasosEjerciciosViewState extends State<PasosEjercicios> {
+  final ExerciseService _exerciseService = ExerciseService();
+  ExerciseDetail? _exerciseDetail;
+  bool _isLoading = true;
+  String? _errorMessage;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadExerciseDetails();
+  }
+
+  Future<void> _loadExerciseDetails() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null;
+    });
+    try {
+      final details =
+          await _exerciseService.getExerciseDetails(widget.exerciseId);
+      _exerciseDetail = details;
+    } catch (e) {
+      _errorMessage = e.toString();
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -69,6 +83,11 @@ class _PasosEjerciciosState extends State<PasosEjercicios> {
             ),
           ),
         ),
+        title: Text(
+          _exerciseDetail?.nombre ?? widget.initialExerciseName,
+          style: TextStyle(
+              color: TColor.black, fontSize: 16, fontWeight: FontWeight.w700),
+        ),
         actions: [
           InkWell(
             onTap: () {},
@@ -91,189 +110,194 @@ class _PasosEjerciciosState extends State<PasosEjercicios> {
         ],
       ),
       backgroundColor: TColor.white,
-      body: SingleChildScrollView(
-        child: Container(
-          padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 25),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: media.width,
-                    height: media.width * 0.43,
-                    decoration: BoxDecoration(
-                        gradient: LinearGradient(colors: TColor.primaryG),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Image.asset(
-                      "assets/img/video_temp.png",
-                      width: media.width,
-                      height: media.width * 0.43,
-                      fit: BoxFit.contain,
-                    ),
-                  ),
-                  Container(
-                    width: media.width,
-                    height: media.width * 0.43,
-                    decoration: BoxDecoration(
-                        color: TColor.black.withOpacity(0.2),
-                        borderRadius: BorderRadius.circular(20)),
-                  ),
-                  IconButton(
-                    onPressed: () {},
-                    icon: Image.asset(
-                      "assets/img/Play.png",
-                      width: 30,
-                      height: 30,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(
-                height: 15,
-              ),
-              Text(
-                widget.eObj["title"].toString(),
-                style: TextStyle(
-                    color: TColor.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(
-                height: 4,
-              ),
-              Text(
-                "Easy | 390 Calories Burn",
-                style: TextStyle(
-                  color: TColor.gray,
-                  fontSize: 12,
-                ),
-              ),
-              const SizedBox(
-                height: 15,
-              ),
-              Text(
-                "Descriptions",
-                style: TextStyle(
-                    color: TColor.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(
-                height: 4,
-              ),
-              ReadMoreText(
-                'A jumping jack, also known as a star jump and called a side-straddle hop in the US military, is a physical jumping exercise performed by jumping to a position with the legs spread wide A jumping jack, also known as a star jump and called a side-straddle hop in the US military, is a physical jumping exercise performed by jumping to a position with the legs spread wide',
-                trimLines: 4,
-                colorClickableText: TColor.black,
-                trimMode: TrimMode.Line,
-                trimCollapsedText: ' Read More ...',
-                trimExpandedText: ' Read Less',
-                style: TextStyle(
-                  color: TColor.gray,
-                  fontSize: 12,
-                ),
-                moreStyle:
-                    const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
-              ),
-              const SizedBox(
-                height: 15,
-              ),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "How To Do It",
-                    style: TextStyle(
-                        color: TColor.black,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700),
-                  ),
-                  TextButton(
-                    onPressed: () {},
-                    child: Text(
-                      "${stepArr.length} Sets",
-                      style: TextStyle(color: TColor.gray, fontSize: 12),
-                    ),
-                  )
-                ],
-              ),
-              ListView.builder(
-                physics: const NeverScrollableScrollPhysics(),
-                shrinkWrap: true,
-                itemCount: stepArr.length,
-                itemBuilder: ((context, index) {
-                  var sObj = stepArr[index] as Map? ?? {};
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : _errorMessage != null
+              ? Center(
+                  child: Padding(
+                      padding: const EdgeInsets.all(20),
+                      child: Text("Error: $_errorMessage",
+                          style: const TextStyle(color: Colors.red))))
+              : _exerciseDetail == null
+                  ? const Center(
+                      child: Text("No se encontraron detalles del ejercicio."))
+                  : SingleChildScrollView(
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 15, horizontal: 25),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // --- SECCIÓN DE GIF ---
+                            Container(
+                              width: media.width,
+                              height: media.width *
+                                  0.56, // Proporción 16:9 o la que prefieras para el GIF
+                              decoration: BoxDecoration(
+                                  color: TColor.lightGray,
+                                  borderRadius: BorderRadius.circular(20)),
+                              child: ClipRRect(
+                                // Para redondear el GIF si el Container tiene bordes
+                                borderRadius: BorderRadius.circular(20),
+                                child: _exerciseDetail!.urlVideoDemostracion !=
+                                            null &&
+                                        _exerciseDetail!
+                                            .urlVideoDemostracion!.isNotEmpty
+                                    ? Image.network(
+                                        _exerciseDetail!.urlVideoDemostracion!,
+                                        fit: BoxFit
+                                            .contain, // O BoxFit.cover, según prefieras
+                                        loadingBuilder:
+                                            (context, child, loadingProgress) {
+                                          if (loadingProgress == null)
+                                            return child;
+                                          return Center(
+                                            child: CircularProgressIndicator(
+                                              value: loadingProgress
+                                                          .expectedTotalBytes !=
+                                                      null
+                                                  ? loadingProgress
+                                                          .cumulativeBytesLoaded /
+                                                      loadingProgress
+                                                          .expectedTotalBytes!
+                                                  : null,
+                                            ),
+                                          );
+                                        },
+                                        errorBuilder:
+                                            (context, error, stackTrace) {
+                                          // Fallback si el GIF falla
+                                          return Center(
+                                              child: Icon(
+                                                  Icons.image_not_supported,
+                                                  size: 50,
+                                                  color: TColor.gray
+                                                      .withOpacity(0.5)));
+                                        },
+                                      )
+                                    : Center(
+                                        child: Icon(Icons.gif_box_outlined,
+                                            size: 50,
+                                            color: TColor.gray.withOpacity(
+                                                0.5))), // No hay URL de GIF
+                              ),
+                            ),
+                            const SizedBox(height: 20),
 
-                  return StepDetailRow(
-                    sObj: sObj,
-                    isLast: stepArr.last == sObj,
-                  );
-                }),
-              ),
-              Text(
-                "Custom Repetitions",
-                style: TextStyle(
-                    color: TColor.black,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700),
-              ),
-              SizedBox(
-                height: 150,
-                child: CupertinoPicker.builder(
-                  itemExtent: 40,
-                  selectionOverlay: Container(
-                    width: double.maxFinite,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      border: Border(
-                        top: BorderSide(color: TColor.gray.withOpacity(0.2), width: 1),
-                        bottom: BorderSide(
-                            color: TColor.gray.withOpacity(0.2), width: 1),
+                            // --- NOMBRE Y MÚSCULO OBJETIVO ---
+                            Text(
+                              _exerciseDetail!.nombre,
+                              style: TextStyle(
+                                  color: TColor.black,
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "Músculo Objetivo: ${_exerciseDetail!.musculoObjetivo}",
+                              style:
+                                  TextStyle(color: TColor.gray, fontSize: 14),
+                            ),
+                            const SizedBox(height: 20),
+
+                            // --- DESCRIPCIÓN ---
+                            Text(
+                              "Descripción",
+                              style: TextStyle(
+                                  color: TColor.black,
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700),
+                            ),
+                            const SizedBox(height: 8),
+                            ReadMoreText(
+                              _exerciseDetail!.descripcion,
+                            ),
+                            const SizedBox(height: 25),
+
+                            // --- MÁQUINAS ASOCIADAS ---
+                            if (_exerciseDetail!
+                                .maquinasAsociadas.isNotEmpty) ...[
+                              Text(
+                                "Equipamiento Necesario",
+                                style: TextStyle(
+                                    color: TColor.black,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700),
+                              ),
+                              const SizedBox(height: 10),
+                              SizedBox(
+                                height: 150, // Ajusta la altura según necesites
+                                child: ListView.builder(
+                                  scrollDirection: Axis.horizontal,
+                                  itemCount:
+                                      _exerciseDetail!.maquinasAsociadas.length,
+                                  itemBuilder: (context, index) {
+                                    AssociatedMachine maquina = _exerciseDetail!
+                                        .maquinasAsociadas[index];
+                                    return Container(
+                                      width: media.width * 0.35,
+                                      margin: const EdgeInsets.only(right: 10),
+                                      child: Column(
+                                        children: [
+                                          Expanded(
+                                            child: Container(
+                                              decoration: BoxDecoration(
+                                                color: TColor.lightGray,
+                                                borderRadius:
+                                                    BorderRadius.circular(12),
+                                              ),
+                                              alignment: Alignment.center,
+                                              child: maquina.urlImagen !=
+                                                          null &&
+                                                      maquina
+                                                          .urlImagen!.isNotEmpty
+                                                  ? ClipRRect(
+                                                      borderRadius:
+                                                          BorderRadius.circular(
+                                                              12),
+                                                      child: Image.network(
+                                                        maquina.urlImagen!,
+                                                        fit: BoxFit.cover,
+                                                        width: double.infinity,
+                                                        height: double.infinity,
+                                                        errorBuilder:
+                                                            (c, e, s) => Icon(
+                                                                Icons
+                                                                    .broken_image,
+                                                                color: TColor
+                                                                    .gray
+                                                                    .withOpacity(
+                                                                        0.5)),
+                                                      ),
+                                                    )
+                                                  : Icon(Icons.fitness_center,
+                                                      size: 40,
+                                                      color: TColor.gray
+                                                          .withOpacity(0.5)),
+                                            ),
+                                          ),
+                                          const SizedBox(height: 8),
+                                          Text(
+                                            maquina.nombre,
+                                            textAlign: TextAlign.center,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: TColor.black),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ),
+                              const SizedBox(height: 25),
+                            ],
+                          ],
+                        ),
                       ),
                     ),
-                  ),
-                  onSelectedItemChanged: (index) {},
-                  childCount: 60,
-                  itemBuilder: (context, index) {
-                    return Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Image.asset(
-                          "assets/img/burn.png",
-                          width: 15,
-                          height: 15,
-                          fit: BoxFit.contain,
-                        ),
-                        Text(
-                          " ${(index + 1) * 15} Calories Burn",
-                          style: TextStyle(color: TColor.gray, fontSize: 10),
-                        ),
-                        Text(
-                          " ${index + 1} ",
-                          style: TextStyle(
-                              color: TColor.gray,
-                              fontSize: 24,
-                              fontWeight: FontWeight.w500),
-                        ),
-                        Text(
-                          " times",
-                          style: TextStyle(color: TColor.gray, fontSize: 16),
-                        )
-                      ],
-                    );
-                  },
-                ),
-              ),
-              RoundButton(title: "Save", elevation: 0, onPressed: () {}),
-              const SizedBox(
-                height: 15,
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

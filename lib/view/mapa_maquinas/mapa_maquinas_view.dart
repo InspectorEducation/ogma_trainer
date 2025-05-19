@@ -4,6 +4,8 @@ import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/models/clase_info_model.dart';
 import 'package:ogma_trainer/models/machine_model.dart';
 import 'package:ogma_trainer/services/equipment_service.dart';
+import 'package:ogma_trainer/view/mapa_maquinas/detalle_clase_view.dart';
+import 'package:ogma_trainer/view/mapa_maquinas/detalle_maquina_view.dart';
 
 class MapaMaquinasView extends StatefulWidget {
   const MapaMaquinasView({super.key});
@@ -96,11 +98,10 @@ class _MapaMaquinasViewState extends State<MapaMaquinasView> {
         tempGroupedMachines.putIfAbsent(machine.tipoMaquina, () => []).add(machine);
       }
     }
-    // Solo actualizar el estado si los datos agrupados han cambiado para evitar bucles de rebuild innecesarios
-    // if (!mapEquals(_groupedAndFilteredMachines, tempGroupedMachines)) { // Necesitarías importar 'package:flutter/foundation.dart' para mapEquals
+
       _groupedAndFilteredMachines = tempGroupedMachines;
       debugPrint("MAQUINAS FILTRADAS $_groupedAndFilteredMachines");
-    // }
+    
   }
 
   @override
@@ -346,8 +347,13 @@ class MachineCard extends StatelessWidget {
     var media = MediaQuery.of(context).size;
     return InkWell(
       onTap: () {
-        // TODO: Navegar a la vista de detalle/reserva de la máquina
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Seleccionada: ${machine.nombre}")));
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DetalleMaquinaView(machine: machine,                                
+              ),
+            ),
+          );
       },
       child: Container(
         width: media.width * 0.45, // Un poco más de ancho para la imagen
@@ -364,12 +370,12 @@ class MachineCard extends StatelessWidget {
           ]
         ),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch, // Para que la imagen ocupe el ancho
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded( // Para que la imagen tome el espacio disponible
-              flex: 3, // Dar más espacio a la imagen
-              child: ClipRRect( // Para redondear las esquinas superiores de la imagen
-                borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+            Expanded( 
+              flex: 3, 
+              child: ClipRRect(
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(15), bottom: Radius.circular(15)),
                 child: machine.urlImagen != null && machine.urlImagen!.isNotEmpty
                     ? Image.network(
                         machine.urlImagen!,
@@ -443,11 +449,16 @@ class ClaseCard extends StatelessWidget {
       margin: const EdgeInsets.symmetric(vertical: 8.0),
       elevation: 3.0,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      clipBehavior: Clip.antiAlias, // Importante para que el Stack respete el borde redondeado
-      child: InkWell( // Hacer toda la tarjeta clickeable
+      clipBehavior: Clip.antiAlias, 
+      child: InkWell(
         onTap: () {
-          // TODO: Navegar a la vista de detalle/inscripción de la clase
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Seleccionada: ${claseInfo.nombreClase}")));
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => DetalleClaseView(claseInfo: claseInfo,                                
+              ),
+            ),
+          );
         },
         child: Stack(
           alignment: Alignment.bottomLeft, // Alinear el contenido de texto abajo a la izquierda

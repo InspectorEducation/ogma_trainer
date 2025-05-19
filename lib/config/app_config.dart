@@ -3,7 +3,7 @@ class AppConfig {
   //static const String apiBaseUrl = "https://management-service-ogma.azure-api.net";
   //static const String userManagementBasePath = "/user-management";
   static const String capacityControlBaseUrl = "https://ogma-repository-hub-capacity-control.onrender.com";
-  static const String equipmentRutineServiceBaseUrl = "http://192.168.1.7:5067";
+  static const String equipmentRutineServiceBaseUrl = "https://ogma-repository-hub-routine-equipment.onrender.com";
   static const String bookingServiceBaseUrl = "https://ogma-repository-hub-booking-management.onrender.com";
   static const String apiBaseUrl = "https://user-management-service-wd84.onrender.com";
   static const String userManagementBasePath = "/api";
