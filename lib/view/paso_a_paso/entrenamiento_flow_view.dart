@@ -44,7 +44,7 @@ class _EntrenamientoFlowViewState extends State<EntrenamientoFlowView> with Tick
   Duration _remainingRestTime = Duration.zero;
 
   // Temporizador para la duración total de la reserva
-  static const int _totalReservationMinutes = 30;
+  static const int _totalReservationMinutes = 20;
   Timer? _workoutSessionTimer;
   Duration _elapsedWorkoutTime = Duration.zero;
   late AnimationController _progressController;
@@ -74,7 +74,7 @@ class _EntrenamientoFlowViewState extends State<EntrenamientoFlowView> with Tick
    Future<void> _loadAllExerciseData() async {
     setState(() => _isLoading = true);
     try {
-      // 1. Cargar los datos del ejercicio vinculado a la reserva
+     
       final bookedData = await _bookingService.getBookedExerciseDetails(widget.idReservaMaquina);
       if (!mounted) return;
       setState(() {
@@ -85,7 +85,7 @@ class _EntrenamientoFlowViewState extends State<EntrenamientoFlowView> with Tick
         }
       });
 
-      // 2. Si tenemos idEjercicio, cargar los detalles completos (incluyendo GIF)
+      
       if (_bookedExerciseData != null && _bookedExerciseData!.idEjercicio > 0) {
         final fullDetails = await _exerciseService.getExerciseDetails(_bookedExerciseData!.idEjercicio);
         if (mounted) {
@@ -317,7 +317,7 @@ class _EntrenamientoFlowViewState extends State<EntrenamientoFlowView> with Tick
                     curve: Curves.linear,
                     duration: const Duration(seconds: 1),
                     borderRadius: BorderRadius.circular(6),
-                    gradientColor: LinearGradient(colors: TColor.secondaryG),
+                    gradientColor: LinearGradient(colors: TColor.primaryG),
                   ),
                 ],
               ),
@@ -344,18 +344,15 @@ class _EntrenamientoFlowViewState extends State<EntrenamientoFlowView> with Tick
           Text(
             ejercicioNombre, // Usar el nombre que ya tenemos
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: TColor.black),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: TColor.black),
           ),
           const SizedBox(height: 10),
           Text(
             "Serie $_currentSerie de $_totalSeries",
-            style: TextStyle(fontSize: 18, color: TColor.gray, fontWeight: FontWeight.w500),
+            style: TextStyle(fontSize: 18, color: TColor.gray, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 5),
-           Text(
-            "Repeticiones: ${_bookedExerciseData!.repeticiones}", // De _bookedExerciseData
-            style: TextStyle(fontSize: 16, color: TColor.secondaryColor1, fontWeight: FontWeight.w500),
-          ),
+          Text("Indicaciones: ${_bookedExerciseData!.notasEjercicio}", style: TextStyle(color: TColor.black, )),
           const Spacer(flex:1),
           // --- IMAGEN/GIF DEL EJERCICIO ---
           Container(
@@ -384,6 +381,12 @@ class _EntrenamientoFlowViewState extends State<EntrenamientoFlowView> with Tick
                   : Center(child: Icon(Icons.fitness_center, size: 80, color: TColor.gray.withOpacity(0.5))), // Fallback
             ),
           ),
+          const SizedBox(height: 15),
+          Text(
+            "x${_bookedExerciseData!.repeticiones}", // De _bookedExerciseData
+            style: TextStyle(fontSize: 30, color: TColor.secondaryColor1, fontWeight: FontWeight.w700),
+          ),
+          Text("REPETICIONES"),
           const Spacer(flex:2),
           RoundButton(
             title: "Serie Completada ($_currentSerie/$_totalSeries)",

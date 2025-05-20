@@ -4,7 +4,8 @@ import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/models/user_profile_data.dart';
 import 'package:ogma_trainer/services/auth_service.dart'; // Para la llamada API
 import 'package:ogma_trainer/services/storage_service.dart';
-import 'package:ogma_trainer/view/main_tab/main_tab_view.dart'; // Para obtener userId
+import 'package:ogma_trainer/view/main_tab/main_tab_view.dart';
+import 'package:ogma_trainer/view/objectivo/generando_rutina_view.dart'; // Para obtener userId
 
 
 
@@ -86,6 +87,8 @@ class _DisponibilidadEntrenamientoViewState extends State<DisponibilidadEntrenam
         data: widget.profileData,
     );
 
+    final userProfileData = widget.profileData;
+
     setState(() { _isLoading = false; });
 
     if (mounted) {
@@ -95,7 +98,7 @@ class _DisponibilidadEntrenamientoViewState extends State<DisponibilidadEntrenam
         );        
         Navigator.pushAndRemoveUntil(
           context,
-          MaterialPageRoute(builder: (context) => const MainTabView()), // O tu pantalla de bienvenida/dashboard
+          MaterialPageRoute(builder: (context) => GenerandoRutinaView(userProfileData: userProfileData)),
           (Route<dynamic> route) => false,
         );
       } else {

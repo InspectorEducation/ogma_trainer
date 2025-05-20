@@ -3,6 +3,7 @@ import 'package:ogma_trainer/common_widget/round_textfield.dart';
 import 'package:flutter/material.dart';
 import 'package:ogma_trainer/common/color_extension.dart';
 import 'package:ogma_trainer/services/auth_service.dart';
+import 'package:ogma_trainer/view/login/registrarse_view.dart';
 import 'package:ogma_trainer/view/main_tab/main_tab_view.dart';
 
 class LoginView extends StatefulWidget {
@@ -195,7 +196,10 @@ class _LoginViewState extends State<LoginView> {
                 ),
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(context);
+                    Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(builder: (context) => const RegistrarseView()),
+                  );
                   },
                   child: Row(
                     mainAxisSize: MainAxisSize.min,

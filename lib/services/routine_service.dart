@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:ogma_trainer/config/app_config.dart';
 import 'package:ogma_trainer/models/machine_model.dart';
 import 'package:ogma_trainer/models/routine_model.dart';
+import 'package:ogma_trainer/models/user_routine_assignment_model.dart';
 import 'package:ogma_trainer/services/storage_service.dart';
 
 class RoutineService {
@@ -61,7 +62,7 @@ class RoutineService {
     }
   }
 
-   Future<List<Machine>> getRequiredMachinesForRoutine(int rutinaId) async {    
+  Future<List<Machine>> getRequiredMachinesForRoutine(int rutinaId) async {    
     final Uri url = Uri.parse(AppConfig.getEquipmentRutineService("/Routines/$rutinaId/required-machines"));
     final token = await _storageService.getToken(); // Si se necesita token
 
@@ -85,6 +86,35 @@ class RoutineService {
     } catch (e) {
       debugPrint("Excepción al obtener máquinas requeridas para rutina $rutinaId: $e");
       return [];      
+    }
+  }
+
+  Future<UserRoutineAssignment?> getAssignedAIRoutine(String userId) async {
+    final int iaTrainerId = AppConfig.idEntrenadorAsignadorIa;
+    final Uri url = Uri.parse(AppConfig.getEquipmentRutineService("/Routines/user/$userId/assigned-by-trainer/$iaTrainerId"));
+    final token = await _storageService.getToken();    
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          "Content-Type": "application/json",
+          if (token != null) "Authorization": "Bearer $token",
+        },
+      );
+
+      if (response.statusCode == 200) {
+        List<dynamic> body = jsonDecode(response.body);
+        if (body.isNotEmpty) {          
+          return UserRoutineAssignment.fromJson(body.first as Map<String, dynamic>);
+        }
+        return null;
+      } else {
+        debugPrint("Error al obtener rutina asignada por IA (${response.statusCode}): ${response.body}");        
+        return null;
+      }
+    } catch (e) {
+      debugPrint("Excepción al obtener rutina asignada por IA: $e");
+      return null;
     }
   }
 }

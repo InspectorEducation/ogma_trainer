@@ -18,6 +18,9 @@ class AppConfig {
   static const String appId = "1383300406";
   static const String appSign = "6926969e641294afad2b7e46200b140357f3ebaca35c961ff927218ef91a5787";
 
+  // --- usuario creado para la IA
+  static const int idEntrenadorAsignadorIa = 33; 
+
   // --- Métodos de utilidad para construir URLs completas ---
   static String getUserManagementUrl(String endpoint) {
     return "$apiBaseUrl$userManagementBasePath$endpoint";

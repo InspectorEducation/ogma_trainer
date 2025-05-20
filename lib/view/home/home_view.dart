@@ -4,8 +4,10 @@ import 'package:ogma_trainer/common_widget/live_class_row.dart';
 import 'package:ogma_trainer/common_widget/round_button.dart';
 import 'package:ogma_trainer/common_widget/siguiente_entrenamiento_row.dart';
 import 'package:ogma_trainer/common_widget/what_train_row.dart';
+import 'package:ogma_trainer/models/routine_model.dart';
 import 'package:ogma_trainer/services/capacity_service.dart';
 import 'package:ogma_trainer/services/equipment_service.dart';
+import 'package:ogma_trainer/services/routine_service.dart';
 import 'package:ogma_trainer/services/storage_service.dart';
 import 'package:ogma_trainer/view/formularios/formulario_sintomas_view.dart';
 import 'package:ogma_trainer/view/login/login_view.dart';
@@ -28,6 +30,11 @@ class _HomeViewState extends State<HomeView> {
   final CapacityService _capacityService = CapacityService();
   final StorageService _storageService = StorageService();
   final EquipmentService _equipmentService = EquipmentService();
+  final RoutineService _routineService = RoutineService();
+
+  Routine? _assignedRoutine;
+  bool _isLoadingAssignedRoutine = true;
+  String? _errorLoadingAssignedRoutine;
 
   bool _isLoadingCheckInStatus = true;
   String? _currentCheckInId;
@@ -101,15 +108,38 @@ class _HomeViewState extends State<HomeView> {
   }
 
   Future<void> _loadInitialData() async {
+    if (!mounted) return;
     setState(() {
-      _isLoadingCheckInStatus = true;      
+      _isLoadingCheckInStatus = true; 
+      _isLoadingLiveClasses = true;   
+      _isLoadingAssignedRoutine = true; 
+      _errorLoadingAssignedRoutine = null; 
+      _errorLoadingLiveClasses = null; 
     });
 
-    Future<void> checkInFuture = _loadCheckInStatus();
-    Future<void> userIdFuture = _getCurrentUserId();
-    Future<void> liveClassesFuture = _loadLiveClasses(); 
+    await _getCurrentUserId();
+    if (!mounted) return;
 
-    await Future.wait([checkInFuture, userIdFuture, liveClassesFuture]);
+    if (_currentUserId == null) {
+      setState(() {
+        _isLoadingCheckInStatus = false;
+        _isLoadingLiveClasses = false;
+        _isLoadingAssignedRoutine = false;
+        _errorLoadingAssignedRoutine = "No se pudo obtener la información del usuario para cargar los datos.";        
+      });
+      return;
+    }
+
+    Future<void> checkInFuture = _loadCheckInStatus();    
+    Future<void> liveClassesFuture = _loadLiveClasses();
+    Future<void> assignedRoutineFuture = _loadAssignedRoutine();
+
+    await Future.wait([
+      checkInFuture,
+      liveClassesFuture,
+      assignedRoutineFuture,
+    ]);
+    if (!mounted) return;
 
     if (workoutNow && mounted) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -118,7 +148,7 @@ class _HomeViewState extends State<HomeView> {
     }
     if (mounted) {
       setState(() {
-        _isLoadingCheckInStatus = false; // Terminar carga
+        _isLoadingCheckInStatus = false;
       });
     }
   }
@@ -358,6 +388,49 @@ class _HomeViewState extends State<HomeView> {
     }
   }
 
+  Future<void> _loadAssignedRoutine() async {
+    if (!mounted) return;
+    
+    if (_currentUserId == null) {
+      if (mounted) {
+        setState(() {
+          _errorLoadingAssignedRoutine =
+              "ID de usuario no disponible para cargar rutina.";
+          _isLoadingAssignedRoutine = false;
+        });
+      }
+      return;
+    }
+
+    try {
+      final assignment = await _routineService
+          .getAssignedAIRoutine(_currentUserId!.toString());
+      if (mounted) {
+        setState(() {
+          if (assignment != null) {
+            _assignedRoutine = assignment.rutinaDetalles;
+          } else {
+            _assignedRoutine = null; // No hay rutina asignada
+          }
+        });
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _errorLoadingAssignedRoutine =
+              "Error al cargar rutina personalizada.";
+        });
+      }
+      debugPrint("Error en _loadAssignedRoutine: $e");
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoadingAssignedRoutine = false;
+        });
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     var media = MediaQuery.of(context).size;
@@ -433,86 +506,170 @@ class _HomeViewState extends State<HomeView> {
               SizedBox(
                 height: media.width * 0.02,
               ),
-              Container(
-                height: media.width * 0.4,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: TColor.primaryG),
-                  borderRadius: BorderRadius.circular(media.width * 0.075),
-                ),
-                child: Stack(clipBehavior: Clip.none, children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          "Reto 7 días",
-                          style: TextStyle(
-                              fontSize: 25, fontWeight: FontWeight.w700),
-                        ),
-                        SizedBox(
-                          height: media.width * 0.01,
-                        ),
-                        Row(
-                          children: const [
-                            Icon(Icons.timer, size: 16),
-                            SizedBox(width: 4),
-                            Text("7 días"),
-                            SizedBox(width: 8),
-                            Icon(Icons.star, size: 16),
-                            SizedBox(width: 4),
-                            Text("2100 kcal"),
-                          ],
-                        ),
-                        SizedBox(
-                          height: media.width * 0.01,
-                        ),
-                        const Text("30% completado"),
-                        SizedBox(
-                          height: media.width * 0.01,
-                        ),
-                        SimpleAnimationProgressBar(
-                          height: 10,
-                          width: media.width * 0.5,
-                          backgroundColor: Colors.grey.shade100,
-                          foregrondColor: Colors.purple,
-                          ratio: 0.3 as double? ?? 0.0,
-                          direction: Axis.horizontal,
-                          curve: Curves.fastLinearToSlowEaseIn,
-                          duration: const Duration(seconds: 3),
-                          borderRadius: BorderRadius.circular(7.5),
-                          gradientColor: LinearGradient(
-                              colors: TColor.secondaryG,
-                              begin: Alignment.centerLeft,
-                              end: Alignment.centerRight),
-                        ),
-                        SizedBox(
-                          height: media.width * 0.03,
-                        ),
-                        SizedBox(
-                            width: 120,
-                            height: 35,
-                            child: RoundButton(
-                                title: "Ver más",
-                                type: RoundButtonType.bgSGradient,
-                                fontSize: 12,
-                                fontWeight: FontWeight.w400,
-                                onPressed: () {}))
-                      ],
-                    ),
-                  ),
-                  Positioned(
-                    // Position the image
-                    right: -30,
-                    top: -20,
-                    child: Image.asset(
-                      "assets/img/man_1.png",
-                      height: media.width * 0.45,
-                      fit: BoxFit.fitHeight,
-                    ),
-                  ),
-                ]),
-              ),
+              _isLoadingAssignedRoutine
+                  ? Container(
+                      // Placeholder mientras carga
+                      height: media.width * 0.4,
+                      alignment: Alignment.center,
+                      child: const CircularProgressIndicator(),
+                    )
+                  : _errorLoadingAssignedRoutine != null
+                      ? Container(
+                          // Mensaje de error
+                          height: media.width * 0.4,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                              color: Colors.red.withOpacity(0.1),
+                              borderRadius:
+                                  BorderRadius.circular(media.width * 0.075)),
+                          alignment: Alignment.center,
+                          child: Text(_errorLoadingAssignedRoutine!,
+                              style: TextStyle(color: Colors.red[700]),
+                              textAlign: TextAlign.center),
+                        )
+                      : _assignedRoutine != null
+                          ? Container(
+                              // Contenedor de la rutina cargada
+                              height: media.width * 0.4, // Mantener altura
+                              decoration: BoxDecoration(
+                                gradient:
+                                    LinearGradient(colors: TColor.primaryG),
+                                borderRadius:
+                                    BorderRadius.circular(media.width * 0.075),
+                              ),
+                              child: Stack(clipBehavior: Clip.none, children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(16.0),
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _assignedRoutine!
+                                            .nombreRutina,
+                                        style: const TextStyle(
+                                            color: Colors
+                                                .white,
+                                            fontSize:
+                                                18,
+                                            fontWeight: FontWeight.w700),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                      SizedBox(height: media.width * 0.01),
+                                      Row(
+                                        children: [
+                                          Icon(Icons.timer,
+                                              size: 16,
+                                              color: TColor.white
+                                                  .withOpacity(0.8)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            "${_assignedRoutine!.numeroDias} Día(s)",
+                                            style: TextStyle(
+                                                color: TColor.white
+                                                    .withOpacity(0.8),
+                                                fontSize: 13),
+                                          ),
+                                          const SizedBox(width: 10),
+                                          Icon(Icons.star,
+                                              size: 16,
+                                              color: TColor.white
+                                                  .withOpacity(0.8)),
+                                          const SizedBox(width: 4),
+                                          Text(
+                                            "2100 kcal",
+                                            style: TextStyle(
+                                                color: TColor.white
+                                                    .withOpacity(0.8),
+                                                fontSize: 13),
+                                          ),
+                                        ],
+                                      ),
+                                      SizedBox(
+                                          height: media.width *
+                                              0.02),
+                                      Text(
+                                        "0% completado",
+                                        style: TextStyle(
+                                            color:
+                                                TColor.white.withOpacity(0.9),
+                                            fontSize: 13),
+                                      ),
+                                      SizedBox(height: media.width * 0.01),
+                                      SimpleAnimationProgressBar(
+                                        height: 10,
+                                        width: media.width * 0.5,
+                                        backgroundColor: Colors.white
+                                            .withOpacity(
+                                                0.3),
+                                        foregrondColor: Colors.purple,
+                                        ratio: 0.0, 
+                                        direction: Axis.horizontal,
+                                        curve: Curves.fastLinearToSlowEaseIn,
+                                        duration: const Duration(
+                                            seconds:
+                                                1),
+                                        borderRadius:
+                                            BorderRadius.circular(7.5),
+                                        gradientColor: LinearGradient(
+                                            colors: TColor
+                                                .secondaryG,
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight),
+                                      ),
+                                      const Spacer(),
+                                      SizedBox(
+                                          width: 120,
+                                          height: 35,
+                                          child: RoundButton(
+                                              title:
+                                                  "Ver Detalles", // Título cambiado
+                                              type: RoundButtonType.bgSGradient,
+                                              fontSize: 12,
+                                              fontWeight: FontWeight.w400,
+                                              onPressed: () {
+                                                if (_assignedRoutine != null) {
+                                                  Navigator.push(
+                                                    context,
+                                                    MaterialPageRoute(
+                                                      builder: (context) =>
+                                                          DetalleEntranamientoView(
+                                                              routine:
+                                                                  _assignedRoutine!),
+                                                    ),
+                                                  );
+                                                }
+                                              }))
+                                    ],
+                                  ),
+                                ),                                
+                                  Positioned(
+                                    right: -25,
+                                    top: -8,
+                                    child: Image.asset(
+                                      "assets/img/man_1.png",
+                                      height: media.width * 0.41,
+                                      fit: BoxFit.contain,
+                                    ),
+                                  ),
+                              ]),
+                            )
+                          : Container(
+                              // Mensaje si no hay rutina asignada
+                              height: media.width * 0.4,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                  color: TColor.lightGray.withOpacity(0.5),
+                                  borderRadius: BorderRadius.circular(
+                                      media.width * 0.075)),
+                              alignment: Alignment.center,
+                              child: Text(
+                                  "Aún no tienes un entrenamiento personalizado asignado.",
+                                  style: TextStyle(
+                                      color: TColor.gray, fontSize: 15),
+                                  textAlign: TextAlign.center),
+                            ),
               SizedBox(
                 height: media.width * 0.05,
               ),
@@ -662,7 +819,7 @@ class _HomeViewState extends State<HomeView> {
                         color: TColor.black,
                         fontSize: 20, // Consistente con otros títulos
                         fontWeight: FontWeight.w700),
-                  ),                  
+                  ),
                   TextButton(
                     onPressed: () {/* Navegar a vista de todas las clases */},
                     child: Text("Ver Todas",
@@ -713,8 +870,16 @@ class _HomeViewState extends State<HomeView> {
                                     //    o a una pantalla intermedia que maneje la conexión a la plataforma de streaming).
 
                                     // Ejemplo simple de inscripción (necesitarás adaptar esto con tu servicio real)
-                                    if (_currentUserId != null && clase.urlClase != null) {                                    
-                                      Navigator.push(context, MaterialPageRoute(builder: (context) => CallPage(callID: clase.urlClase!, userId: _currentUserId.toString(), userName: "Anonimo")));
+                                    if (_currentUserId != null &&
+                                        clase.urlClase != null) {
+                                      Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                              builder: (context) => CallPage(
+                                                  callID: clase.urlClase!,
+                                                  userId:
+                                                      _currentUserId.toString(),
+                                                  userName: "Anonimo")));
                                       // Ejemplo de llamada al servicio (debes tenerlo en BookingService o similar)
                                       /*
                                       _bookingService.registerForClass(classId: clase.idClase, userId: _currentUserId!).then((result) {
@@ -842,7 +1007,6 @@ class _HomeViewState extends State<HomeView> {
               SizedBox(
                 height: media.width * 0.1,
               ),
-              
             ],
           ),
         )),
@@ -852,13 +1016,24 @@ class _HomeViewState extends State<HomeView> {
 
   Widget _buildLiveClassesSection() {
     if (_isLoadingLiveClasses) {
-      return const Center(child: Padding(padding: EdgeInsets.all(16.0), child: CircularProgressIndicator()));
+      return const Center(
+          child: Padding(
+              padding: EdgeInsets.all(16.0),
+              child: CircularProgressIndicator()));
     }
     if (_errorLoadingLiveClasses != null) {
-      return Center(child: Padding(padding: const EdgeInsets.all(16.0),child: Text(_errorLoadingLiveClasses!, style: const TextStyle(color: Colors.red))));
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text(_errorLoadingLiveClasses!,
+                  style: const TextStyle(color: Colors.red))));
     }
     if (_liveClasses.isEmpty) {
-      return Center(child: Padding(padding: const EdgeInsets.all(16.0),child: Text("No hay clases en vivo programadas.", style: TextStyle(color: TColor.gray))));
+      return Center(
+          child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Text("No hay clases en vivo programadas.",
+                  style: TextStyle(color: TColor.gray))));
     }
     final clasex = _liveClasses[0];
     String? id_clase = clasex.urlClase;
@@ -875,13 +1050,18 @@ class _HomeViewState extends State<HomeView> {
         debugPrint("URL DE CLASE: $id_clase");
         return LiveClassRow(
           clase: clase,
-          onJoinNow: () {            
-             if (_currentUserId != null && clase.urlClase != null) {                                    
-                Navigator.push(context, MaterialPageRoute(builder: (context) => CallPage(callID: clase.urlClase!, userId: _currentUserId.toString(), userName: "Anonimo")));
+          onJoinNow: () {
+            if (_currentUserId != null && clase.urlClase != null) {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => CallPage(
+                          callID: clase.urlClase!,
+                          userId: _currentUserId.toString(),
+                          userName: "Anonimo")));
             } else {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text("Por favor, inicia sesión para unirte."))
-              );
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text("Por favor, inicia sesión para unirte.")));
             }
           },
         );
